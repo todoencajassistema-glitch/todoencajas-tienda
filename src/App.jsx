@@ -388,7 +388,7 @@ body{font-family:'Inter',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #ede9e3;transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
 .card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(232,104,26,.12);border-color:#f0a070}
-.cimg{background:linear-gradient(135deg,#faf7f4,#f0ede8);height:150px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.cimg{background:linear-gradient(135deg,#faf7f4,#f0ede8);height:220px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .cimg img{width:100%;height:100%;object-fit:cover}
 .ctag{position:absolute;top:10px;left:10px;background:rgba(232,104,26,.12);color:#E8681A;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px;border-radius:6px}
 .cbody{padding:13px 15px 15px;flex:1;display:flex;flex-direction:column}
@@ -456,7 +456,7 @@ footer p{font-size:12px;color:#888;line-height:1.6}
 @media(max-width:600px){
   .hero{padding:28px 16px 24px}.main{padding:20px 14px 40px}
   .grid{grid-template-columns:repeat(2,1fr);gap:10px}
-  .cimg{height:130px}.trust{gap:12px}.rg{flex-direction:column}.panel{max-width:100%}
+  .cimg{height:180px}.trust{gap:12px}.rg{flex-direction:column}.panel{max-width:100%}
 }
 `;
 
