@@ -473,7 +473,7 @@ export default function App() {
   const [ferr, setFerr]           = useState("");
 
   useEffect(()=>{
-    fetch(`${SUPABASE_URL}/rest/v1/productos?activo=eq.true&stock=gt.0&order=categoria,nombre`,
+    fetch(`${SUPABASE_URL}/rest/v1/productos?visible_online=eq.true&stock=gt.0&order=categoria,nombre`,
       {headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}})
       .then(r=>r.json())
       .then(d=>{ if(d&&d.length>0){setProductos(d);}else{setProductos(DEMO);setUsandoDemo(true);} setLoading(false); })
