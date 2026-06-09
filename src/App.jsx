@@ -496,12 +496,35 @@ export default function App() {
   };
   const cambiarQty=(id,d)=>setCarrito(prev=>prev.map(i=>i.id===id?{...i,qty:i.qty+d}:i).filter(i=>i.qty>0));
   const setF=(k)=>(e)=>setForm(f=>({...f,[k]:e.target.value}));
-  const handleWa=()=>{
+  const handleWa = async () => {
     if(!form.nombre.trim()){setFerr("Por favor ingresa tu nombre.");return;}
     if(!/^\d{10,}$/.test(form.telefono.replace(/\s/g,""))){setFerr("Ingresa un teléfono válido (10 dígitos mínimo).");return;}
     if(form.entrega==="foraneo"&&!form.estado){setFerr("Selecciona el estado de destino.");return;}
     setFerr("");
-    window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`,"_blank");
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/pedidos`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          nombre:    form.nombre,
+          telefono:  form.telefono,
+          entrega:   form.entrega,
+          colonia:   form.colonia   || null,
+          direccion: form.direccion || null,
+          estado:    form.estado    || null,
+          ciudad:    form.ciudad    || null,
+          items:     JSON.stringify(carrito.map(i => ({ id: i.id, nombre: i.nombre, sku: i.sku, precio: i.precio, qty: i.qty }))),
+          subtotal:  total,
+          estatus:   "pendiente",
+        }),
+      });
+    } catch(e) { console.error("Error guardando pedido:", e); }
+    window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
   };
 
   return(<>
@@ -517,7 +540,7 @@ export default function App() {
     </div></header>
 
     <section className="hero">
-      <h1>Cajas y empaque<br/><span>directo a tu puerta</span></h1>
+      <h1>Tu proveedor de<br/><span>cajas y empaque</span></h1>
       <p>Material de empaque para tu negocio. Stock en tiempo real, precios justos y atención por WhatsApp.</p>
       <div className="trust">
         {[`🚚 Envío gratis CDMX desde ${fmt(ENVIO_GRATIS_MIN)}`,"🏪 Recolección en tienda","📦 Envíos foráneos","💬 Atención por WhatsApp"]
