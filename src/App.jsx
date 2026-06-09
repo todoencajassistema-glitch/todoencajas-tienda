@@ -385,7 +385,7 @@ body{font-family:'Inter',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:
 .fb:hover{border-color:#E8681A;color:#E8681A}
 .fb.act{background:#E8681A;border-color:#E8681A;color:#fff}
 .sec{font-size:13px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #e5e1db}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #ede9e3;transition:transform .18s,box-shadow .18s;display:flex;flex-direction:column}
 .card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(232,104,26,.12);border-color:#f0a070}
 .cimg{background:linear-gradient(135deg,#faf7f4,#f0ede8);height:150px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
@@ -455,7 +455,7 @@ footer{background:#1a1a1a;color:#fff;text-align:center;padding:28px 24px;margin-
 footer p{font-size:12px;color:#888;line-height:1.6}
 @media(max-width:600px){
   .hero{padding:28px 16px 24px}.main{padding:20px 14px 40px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
   .cimg{height:130px}.trust{gap:12px}.rg{flex-direction:column}.panel{max-width:100%}
 }
 `;
