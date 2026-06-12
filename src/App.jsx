@@ -3,6 +3,14 @@ import { useState, useEffect, useRef } from "react";
 const SUPABASE_URL = "https://tbsnhkerfkovxsgreqqy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRic25oa2VyZmtvdnhzZ3JlcXF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mjg5NTEsImV4cCI6MjA5NTIwNDk1MX0.lIMcF5ATSBr9rQKxv_PGz0btEIF7uZB6z5O_DBw5f_Y";
 const WA_NUMBER   = "5215522688744";
+const CLABE       = "072180012204779882";
+const BANCO       = "Banorte";
+const BENEFICIARIO = "Edgar Celaya Arellano";
+
+function genReferencia(id) {
+  const año = new Date().getFullYear();
+  return `TEC-${año}-${String(id).padStart(5,"0")}`;
+}
 const ORANGE      = "#E8681A";
 const ENVIO_GRATIS_MIN = 8000;
 
@@ -496,6 +504,212 @@ footer p{font-size:12px;color:#888;line-height:1.6}
 }
 `;
 
+
+
+/* ─── Pantalla de pago post-pedido ─────────────────────────────────────── */
+function PantallaPago({ pedido, onNuevoPedido }) {
+  const [comprobante, setComprobante] = useState(null);
+  const [subiendo, setSubiendo]       = useState(false);
+  const [subido, setSubido]           = useState(false);
+  const [error, setError]             = useState("");
+  const fileRef = useRef();
+
+  const esEfectivo = pedido.metodo_pago === "efectivo";
+  const expira = new Date(pedido.expira_en);
+  const expiraStr = expira.toLocaleString("es-MX", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" });
+
+  const subirComprobante = async (file) => {
+    setSubiendo(true); setError("");
+    try {
+      const ext  = file.name.split(".").pop();
+      const path = `${pedido.referencia}-${Date.now()}.${ext}`;
+      const r = await fetch(`${SUPABASE_URL}/storage/v1/object/comprobantes/${path}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": file.type, "x-upsert": "true" },
+        body: file,
+      });
+      if (!r.ok) throw new Error("Error al subir");
+      const url = `${SUPABASE_URL}/storage/v1/object/public/comprobantes/${path}`;
+      // Actualizar pedido: comprobante_url + estatus → pago_recibido
+      await fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${pedido.id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ comprobante_url: url, estatus: "pago_recibido" }),
+      });
+      setSubido(true);
+    } catch(e) { setError("Error al subir el comprobante. Intenta de nuevo."); }
+    setSubiendo(false);
+  };
+
+  if (subido) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 24px",textAlign:"center",gap:16}}>
+      <div style={{fontSize:56}}>✅</div>
+      <div style={{fontSize:20,fontWeight:900,color:"#1a1a1a"}}>¡Comprobante recibido!</div>
+      <div style={{fontSize:14,color:"#666",maxWidth:320,lineHeight:1.6}}>
+        Verificaremos tu pago y te confirmaremos por WhatsApp al <strong>{pedido.telefono}</strong> a la brevedad.
+      </div>
+      <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 18px",fontSize:13,color:"#166534",fontWeight:600,maxWidth:320}}>
+        📋 Tu referencia de pedido:<br/>
+        <span style={{fontSize:18,fontWeight:900}}>{pedido.referencia}</span>
+      </div>
+      <button onClick={onNuevoPedido} style={{background:ORANGE,color:"#fff",border:"none",borderRadius:12,padding:"13px 28px",fontFamily:"Inter,sans-serif",fontWeight:800,fontSize:15,cursor:"pointer",marginTop:8}}>
+        Seguir comprando
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:16}}>
+      {/* Resumen pedido */}
+      <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:12,padding:"14px 16px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>Tu pedido</div>
+        <div style={{fontSize:16,fontWeight:800,color:"#1a1a1a",marginBottom:4}}>{pedido.nombre}</div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}>
+          <span style={{color:"#666"}}>Total a pagar</span>
+          <span style={{color:ORANGE,fontSize:18,fontWeight:900}}>{fmt(pedido.subtotal)}</span>
+        </div>
+        <div style={{fontSize:12,color:"#aaa",marginTop:4}}>Ref: <strong style={{color:"#1a1a1a"}}>{pedido.referencia}</strong></div>
+      </div>
+
+      {/* Método de pago */}
+      {!esEfectivo ? (
+        <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"16px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para SPEI / Transferencia</div>
+          {[
+            ["Banco", BANCO],
+            ["Beneficiario", BENEFICIARIO],
+            ["CLABE", CLABE],
+            ["Monto exacto", fmt(pedido.subtotal)],
+            ["Referencia", pedido.referencia],
+          ].map(([k,v]) => (
+            <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #dbeafe"}}>
+              <span style={{fontSize:12,color:"#3b82f6",fontWeight:600}}>{k}</span>
+              <span style={{fontSize:13,fontWeight:800,color:"#1e3a8a",textAlign:"right",maxWidth:"60%"}}>{v}</span>
+            </div>
+          ))}
+          <div style={{marginTop:10,background:"#fff",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#1e40af",fontWeight:600}}>
+            ⚠️ Usa la referencia <strong>{pedido.referencia}</strong> para identificar tu pago
+          </div>
+        </div>
+      ) : (
+        <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 16px",fontSize:13,color:"#166534",fontWeight:600}}>
+          💵 Pago en efectivo al recoger en tienda.<br/>
+          <span style={{fontWeight:400,fontSize:12}}>Por favor lleva el monto exacto: <strong>{fmt(pedido.subtotal)}</strong></span>
+        </div>
+      )}
+
+      {/* Aviso 24h — solo para SPEI */}
+      {!esEfectivo && (
+        <div style={{background:"#fff7ed",border:"1.5px solid #fed7aa",borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#9a3412",marginBottom:4}}>⏰ Tienes 24 horas para pagar</div>
+          <div style={{fontSize:12,color:"#c2410c"}}>
+            Si no subimos tu comprobante antes del <strong>{expiraStr}</strong>, tu pedido se cancelará automáticamente.
+          </div>
+        </div>
+      )}
+
+      {/* Subir comprobante — solo para SPEI */}
+      {!esEfectivo && (
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>
+            📎 Sube tu comprobante de pago
+          </div>
+          <div
+            onClick={() => fileRef.current.click()}
+            style={{
+              border: "2px dashed #e5e1db", borderRadius:12, padding:"24px",
+              textAlign:"center", cursor:"pointer", background:"#fafaf8",
+              transition:"all .15s",
+            }}
+            onMouseOver={e=>{e.currentTarget.style.borderColor=ORANGE;e.currentTarget.style.background="#fff7f2";}}
+            onMouseOut={e=>{e.currentTarget.style.borderColor="#e5e1db";e.currentTarget.style.background="#fafaf8";}}
+          >
+            {subiendo ? (
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                <div style={{width:28,height:28,border:"3px solid #f0ede8",borderTopColor:ORANGE,borderRadius:"50%",animation:"sp .7s linear infinite"}}/>
+                <span style={{fontSize:13,color:"#aaa",fontWeight:600}}>Subiendo...</span>
+              </div>
+            ) : comprobante ? (
+              <div style={{fontSize:13,fontWeight:700,color:"#22c55e"}}>✓ {comprobante.name}</div>
+            ) : (
+              <>
+                <div style={{fontSize:32,marginBottom:8}}>📸</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#555"}}>Toca para subir foto o PDF</div>
+                <div style={{fontSize:11,color:"#aaa",marginTop:4}}>Captura de pantalla, foto o PDF del comprobante</div>
+              </>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*,.pdf" style={{display:"none"}}
+            onChange={e => { const f = e.target.files[0]; if(f){setComprobante(f);subirComprobante(f);} }} />
+          {error && <div style={{fontSize:13,color:"#e53935",fontWeight:600,marginTop:8}}>⚠ {error}</div>}
+        </div>
+      )}
+
+      {/* Para efectivo — botón de confirmación */}
+      {esEfectivo && (
+        <div style={{textAlign:"center",paddingTop:8}}>
+          <div style={{fontSize:13,color:"#666",marginBottom:12}}>Te esperamos en tienda para completar tu pedido.</div>
+          <button onClick={onNuevoPedido} style={{background:ORANGE,color:"#fff",border:"none",borderRadius:12,padding:"13px 28px",fontFamily:"Inter,sans-serif",fontWeight:800,fontSize:15,cursor:"pointer"}}>
+            Entendido
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TarjetaProducto({ prod, agregar, added, setAdded, setPanel, setDetalle }) {
+  const waMsg = `Hola, me interesa cotizar una cantidad mayor de *${prod.nombre}* (SKU: ${prod.sku}). ¿Cuál sería el precio por volumen?`;
+  return (
+    <div className="card" key={prod.id}>
+      <div className="cimg">
+        {prod.imagenes&&prod.imagenes.filter(s=>s&&s.trim()).length>0
+          ?<img src={prod.imagenes.filter(s=>s&&s.trim())[0]} alt={prod.nombre}/>
+          :<BoxSVG size={58}/>}
+        {prod.categoria&&<span className="ctag">{prod.categoria}</span>}
+      </div>
+      <div className="cbody">
+        <div className="cname">{prod.nombre}</div>
+        <div className="csku">SKU: {prod.sku}</div>
+        {prod.largo&&prod.ancho&&prod.alto&&(
+          <div style={{fontSize:11,color:"#aaa",fontWeight:600,marginBottom:2}}>
+            📐 {prod.largo}×{prod.ancho}×{prod.alto} cm
+          </div>
+        )}
+        <div className={`cstock${prod.stock<=5?" low":""}`}>{prod.stock<=5?`⚠ Solo ${prod.stock} pzas`:`✓ ${prod.stock} pzas disponibles`}</div>
+        <button className="detalle-btn" onClick={()=>setDetalle(prod)}>Ver detalles →</button>
+        {/* Nivel 1: Por pieza */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:10,padding:"7px 11px",marginBottom:6}}>
+          <div>
+            <div style={{fontSize:9,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".6px",marginBottom:1}}>Por pieza</div>
+            <div style={{fontSize:17,fontWeight:900,color:"#1a1a1a"}}>{fmt(prod.precio)} <span style={{fontSize:11,fontWeight:500,color:"#aaa"}}>c/u</span></div>
+          </div>
+          <button className={`add${added===prod.id+"-pieza"?" done":""}`} onClick={()=>{agregar({...prod,_tipo:"pieza"});setAdded(prod.id+"-pieza");setTimeout(()=>setAdded(null),700);setPanel(true);}}>{added===prod.id+"-pieza"?"✓":"+"}</button>
+        </div>
+        {/* Nivel 2: Atado */}
+        {prod.precio_atado&&prod.cantidad_atado&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff7f2",border:"1.5px solid #fed7aa",borderRadius:10,padding:"7px 11px",marginBottom:6}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:1}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#9a3412",textTransform:"uppercase",letterSpacing:".6px"}}>Atado {prod.cantidad_atado} pzas</span>
+                <span style={{background:"#E8681A",color:"#fff",fontSize:8,fontWeight:800,padding:"1px 5px",borderRadius:99}}>-{Math.round((1-prod.precio_atado/(prod.precio*prod.cantidad_atado))*100)}%</span>
+              </div>
+              <div style={{fontSize:17,fontWeight:900,color:"#E8681A"}}>{fmt(prod.precio_atado)}</div>
+              <div style={{fontSize:9,color:"#aaa"}}>{fmt(prod.precio_atado/prod.cantidad_atado)} c/u</div>
+            </div>
+            <button className={`add${added===prod.id+"-atado"?" done":""}`} style={{background:added===prod.id+"-atado"?"#22c55e":"#E8681A",color:"#fff",border:"none",borderRadius:10,width:36,height:36,fontSize:added===prod.id+"-atado"?16:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onClick={()=>{agregar({...prod,nombre:`${prod.nombre} (Atado ${prod.cantidad_atado} pzas)`,precio:prod.precio_atado});setAdded(prod.id+"-atado");setTimeout(()=>setAdded(null),700);setPanel(true);}}>{added===prod.id+"-atado"?"✓":"+"}</button>
+          </div>
+        )}
+        {/* Nivel 3: Cotizar mayor */}
+        <a href={`https://wa.me/525522688744?text=${encodeURIComponent(waMsg)}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#f5f3ef",color:"#555",borderRadius:10,padding:"7px 10px",fontSize:11,fontWeight:700,textDecoration:"none",border:"1.5px solid #e5e1db"}}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Cotizar cantidad mayor
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -506,8 +720,9 @@ export default function App() {
   const [added, setAdded]         = useState(null);
   const [busqueda, setBusqueda]   = useState("");
   const [detalle, setDetalle]     = useState(null);
-  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", colonia:"", direccion:"", estado:"", ciudad:"" });
+  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", colonia:"", direccion:"", estado:"", ciudad:"", metodo_pago:"spei" });
   const [ferr, setFerr]           = useState("");
+  const [pedidoCreado, setPedidoCreado] = useState(null);
 
   useEffect(()=>{
     fetch(`${SUPABASE_URL}/rest/v1/productos?visible_online=eq.true&stock=gt.0&order=categoria,nombre&select=*`,
@@ -520,12 +735,49 @@ export default function App() {
   const CATS_ORDEN = ["Todos","Saldos","Alimentos y Bebidas","Material de Embalaje","Cajas Armables","Cajas para Envío","Cajas Especiales","Contenedores"];
   const catsDB = Array.from(new Set(productos.map(p=>p.categoria).filter(Boolean)));
   const cats = ["Todos", ...CATS_ORDEN.slice(1).filter(c => catsDB.includes(c)), ...catsDB.filter(c => !CATS_ORDEN.includes(c))];
+  // Detectar si la búsqueda es una medida tipo "20x30x15" o "20 x 30 x 15"
+  const parseMedida = (q) => {
+    const m = q.replace(/\s/g,"").match(/^(\d+(?:\.\d+)?)[x×](\d+(?:\.\d+)?)[x×](\d+(?:\.\d+)?)$/i);
+    if (m) return { largo: parseFloat(m[1]), ancho: parseFloat(m[2]), alto: parseFloat(m[3]) };
+    return null;
+  };
+  const medidaBuscada = parseMedida(busqueda.trim());
+
   const filtrados = productos.filter(p => {
     const matchCat = cat === "Todos" || p.categoria === cat;
     const q = busqueda.toLowerCase();
-    const matchQ = !q || p.nombre?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q);
+    if (!q) return matchCat;
+    if (medidaBuscada) {
+      // Búsqueda exacta por medidas
+      const matchExacto = p.largo == medidaBuscada.largo && p.ancho == medidaBuscada.ancho && p.alto == medidaBuscada.alto;
+      // También buscar en nombre por si tiene las medidas escritas
+      const matchNombre = p.nombre?.toLowerCase().includes(q);
+      return matchCat && (matchExacto || matchNombre);
+    }
+    const matchQ = p.nombre?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q);
     return matchCat && matchQ;
   });
+
+  // Sugerencias por medida similar cuando no hay resultados exactos
+  const sugerenciasMedida = medidaBuscada && filtrados.length === 0 ? (() => {
+    const volRef = medidaBuscada.largo * medidaBuscada.ancho * medidaBuscada.alto;
+    return productos
+      .filter(p => p.largo && p.ancho && p.alto)
+      .map(p => {
+        const vol = p.largo * p.ancho * p.alto;
+        const diff = Math.abs(vol - volRef) / volRef;
+        const dimMatch = [
+          Math.abs(p.largo - medidaBuscada.largo) <= 3,
+          Math.abs(p.ancho - medidaBuscada.ancho) <= 3,
+          Math.abs(p.alto  - medidaBuscada.alto)  <= 3,
+        ].filter(Boolean).length;
+        return { ...p, _score: dimMatch * 3 + (diff < 0.3 ? 2 : diff < 0.5 ? 1 : 0) };
+      })
+      .filter(p => p._score > 0)
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 6);
+  })() : [];
+
   const totalItems = carrito.reduce((s,i)=>s+i.qty,0);
   const total      = carrito.reduce((s,i)=>s+i.precio*i.qty,0);
   const envioGratis = form.entrega==="cdmx"&&total>=ENVIO_GRATIS_MIN;
@@ -544,31 +796,51 @@ export default function App() {
     if(!form.nombre.trim()){setFerr("Por favor ingresa tu nombre.");return;}
     if(!/^\d{10,}$/.test(form.telefono.replace(/\s/g,""))){setFerr("Ingresa un teléfono válido (10 dígitos mínimo).");return;}
     if(form.entrega==="foraneo"&&!form.estado){setFerr("Selecciona el estado de destino.");return;}
+    if(carrito.length===0){setFerr("Tu carrito está vacío.");return;}
     setFerr("");
+    const expira = new Date(Date.now() + 24*60*60*1000).toISOString();
+    // Método de pago: efectivo solo en tienda, SPEI para todo
+    const metodoPago = form.entrega==="tienda" ? form.metodo_pago : "spei";
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/pedidos`, {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/pedidos`, {
         method: "POST",
         headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json", Prefer: "return=representation",
         },
         body: JSON.stringify({
-          nombre:    form.nombre,
-          telefono:  form.telefono,
-          entrega:   form.entrega,
-          colonia:   form.colonia   || null,
-          direccion: form.direccion || null,
-          estado:    form.estado    || null,
-          ciudad:    form.ciudad    || null,
-          items:     JSON.stringify(carrito.map(i => ({ id: i.id, nombre: i.nombre, sku: i.sku, precio: i.precio, qty: i.qty }))),
-          subtotal:  total,
-          estatus:   "pendiente",
+          nombre:      form.nombre,
+          telefono:    form.telefono,
+          entrega:     form.entrega,
+          colonia:     form.colonia   || null,
+          direccion:   form.direccion || null,
+          estado:      form.estado    || null,
+          ciudad:      form.ciudad    || null,
+          items:       JSON.stringify(carrito.map(i=>({id:i.id,nombre:i.nombre,sku:i.sku,precio:i.precio,qty:i.qty}))),
+          subtotal:    total,
+          estatus:     "recibido",
+          metodo_pago: metodoPago,
+          expira_en:   expira,
         }),
       });
-    } catch(e) { console.error("Error guardando pedido:", e); }
-    window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
+      const data = await r.json();
+      const pedido = Array.isArray(data) ? data[0] : data;
+      const referencia = genReferencia(pedido.id);
+      // Guardar referencia en el pedido
+      await fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${pedido.id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ referencia }),
+      });
+      // Abrir WhatsApp con el resumen
+      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
+      // Mostrar pantalla de pago
+      setPedidoCreado({ ...pedido, referencia, metodo_pago: metodoPago, expira_en: expira });
+    } catch(e) {
+      console.error("Error guardando pedido:", e);
+      // Si falla Supabase, igual abrir WhatsApp
+      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
+    }
   };
 
   return(<>
@@ -615,49 +887,51 @@ export default function App() {
       )}
       {!loading&&<div className="filters">{cats.map(c=><button key={c} className={`fb${cat===c?" act":""}`} onClick={()=>setCat(c)}>{c}</button>)}</div>}
       {loading&&<div className="load"><div className="spin"/>Cargando productos...</div>}
+
+      {/* Mensaje medida no disponible + sugerencias */}
+      {!loading && medidaBuscada && filtrados.length === 0 && (
+        <>
+          <div style={{
+            background:"#fff7ed", border:"1.5px solid #fed7aa", borderRadius:14,
+            padding:"18px 20px", marginBottom:24, textAlign:"center"
+          }}>
+            <div style={{fontSize:20,marginBottom:8}}>📦</div>
+            <div style={{fontSize:16,fontWeight:800,color:"#9a3412",marginBottom:6}}>
+              Medida no disponible
+            </div>
+            <div style={{fontSize:13,color:"#c2410c"}}>
+              No tenemos la medida <strong>{busqueda}</strong> en existencia,
+              pero estas cajas podrían servirte:
+            </div>
+          </div>
+          {sugerenciasMedida.length > 0 && (
+            <>
+              <div className="sec">También podría interesarte</div>
+              <div className="grid">
+                {sugerenciasMedida.map(prod => (
+                  <TarjetaProducto key={prod.id} prod={prod} agregar={agregar} added={added} setAdded={setAdded} setPanel={setPanel} setDetalle={setDetalle} />
+                ))}
+              </div>
+            </>
+          )}
+          {sugerenciasMedida.length === 0 && (
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <a href={`https://wa.me/525522688744?text=${encodeURIComponent("Hola, busco una caja de medida "+busqueda+". ¿Pueden fabricarla o tienen algo similar?")}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{display:"inline-flex",alignItems:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:12,padding:"12px 20px",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,textDecoration:"none"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Consultar por WhatsApp
+              </a>
+            </div>
+          )}
+        </>
+      )}
+
       {!loading&&filtrados.length>0&&(<>
         <div className="sec">{filtrados.length} producto{filtrados.length!==1?"s":""} disponible{filtrados.length!==1?"s":""}</div>
         <div className="grid">
           {filtrados.map(prod=>(
-            <div className="card" key={prod.id}>
-              <div className="cimg">
-                {prod.imagenes&&prod.imagenes.length>0?<img src={prod.imagenes[0]} alt={prod.nombre}/>:<BoxSVG size={58}/>}
-                {prod.categoria&&<span className="ctag">{prod.categoria}</span>}
-              </div>
-              <div className="cbody">
-                <div className="cname">{prod.nombre}</div>
-                <div className="csku">SKU: {prod.sku}</div>
-                <div className={`cstock${prod.stock<=5?" low":""}`}>{prod.stock<=5?`⚠ Solo ${prod.stock} pzas`:`✓ ${prod.stock} pzas disponibles`}</div>
-                <button className="detalle-btn" onClick={()=>setDetalle(prod)}>Ver detalles →</button>
-                {/* Nivel 1: Por pieza */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:10,padding:"7px 11px",marginBottom:6}}>
-                  <div>
-                    <div style={{fontSize:9,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".6px",marginBottom:1}}>Por pieza</div>
-                    <div style={{fontSize:17,fontWeight:900,color:"#1a1a1a"}}>{fmt(prod.precio)} <span style={{fontSize:11,fontWeight:500,color:"#aaa"}}>c/u</span></div>
-                  </div>
-                  <button className={`add${added===prod.id+"-pieza"?" done":""}`} onClick={()=>{agregar({...prod,_tipo:"pieza"});setAdded(prod.id+"-pieza");setTimeout(()=>setAdded(null),700);setPanel(true);}}>{added===prod.id+"-pieza"?"✓":"+"}</button>
-                </div>
-                {/* Nivel 2: Atado (si existe) */}
-                {prod.precio_atado&&prod.cantidad_atado&&(
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff7f2",border:"1.5px solid #fed7aa",borderRadius:10,padding:"7px 11px",marginBottom:6}}>
-                    <div>
-                      <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:1}}>
-                        <span style={{fontSize:9,fontWeight:700,color:"#9a3412",textTransform:"uppercase",letterSpacing:".6px"}}>Atado {prod.cantidad_atado} pzas</span>
-                        <span style={{background:"#E8681A",color:"#fff",fontSize:8,fontWeight:800,padding:"1px 5px",borderRadius:99}}>-{Math.round((1-prod.precio_atado/(prod.precio*prod.cantidad_atado))*100)}%</span>
-                      </div>
-                      <div style={{fontSize:17,fontWeight:900,color:"#E8681A"}}>{fmt(prod.precio_atado)}</div>
-                      <div style={{fontSize:9,color:"#aaa"}}>{fmt(prod.precio_atado/prod.cantidad_atado)} c/u</div>
-                    </div>
-                    <button className={`add${added===prod.id+"-atado"?" done":""}`} style={{background:added===prod.id+"-atado"?"#22c55e":"#E8681A",color:"#fff",border:"none",borderRadius:10,width:36,height:36,fontSize:added===prod.id+"-atado"?16:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}} onClick={()=>{agregar({...prod,nombre:`${prod.nombre} (Atado ${prod.cantidad_atado} pzas)`,precio:prod.precio_atado,qty_fixed:prod.cantidad_atado});setAdded(prod.id+"-atado");setTimeout(()=>setAdded(null),700);setPanel(true);}}>{added===prod.id+"-atado"?"✓":"+"}</button>
-                  </div>
-                )}
-                {/* Nivel 3: Cotizar mayor */}
-                <a href={`https://wa.me/525522688744?text=${encodeURIComponent("Hola, me interesa cotizar una cantidad mayor de *"+prod.nombre+"* (SKU: "+prod.sku+"). ¿Cuál sería el precio por volumen?")}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#f5f3ef",color:"#555",borderRadius:10,padding:"7px 10px",fontSize:11,fontWeight:700,textDecoration:"none",border:"1.5px solid #e5e1db"}}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                  Cotizar cantidad mayor
-                </a>
-              </div>
-            </div>
+            <TarjetaProducto key={prod.id} prod={prod} agregar={agregar} added={added} setAdded={setAdded} setPanel={setPanel} setDetalle={setDetalle} />
           ))}
         </div>
       </>)}
@@ -723,6 +997,25 @@ export default function App() {
                   <select className="inp" value={form.estado} onChange={setF("estado")}><option value="">Selecciona un estado…</option>{ESTADOS_MX.map(e=><option key={e} value={e}>{e}</option>)}</select></div>
                 <div><label className="lbl">Ciudad / Código Postal</label><input className="inp" placeholder="Ej. Monterrey, 64000" value={form.ciudad} onChange={setF("ciudad")}/></div>
               </>)}
+              {/* Método de pago */}
+              <div>
+                <label className="lbl">Método de pago</label>
+                <div className="rg">
+                  {form.entrega==="tienda" && (
+                    <div className={`ro${form.metodo_pago==="efectivo"?" sel":""}`} onClick={()=>setForm(f=>({...f,metodo_pago:"efectivo"}))}>
+                      <div className="rc"/>💵 Efectivo en tienda
+                    </div>
+                  )}
+                  <div className={`ro${form.metodo_pago==="spei"?" sel":""}`} onClick={()=>setForm(f=>({...f,metodo_pago:"spei"}))}>
+                    <div className="rc"/>🏦 SPEI / Transferencia
+                  </div>
+                </div>
+                {form.metodo_pago==="spei" && (
+                  <div style={{fontSize:11,color:"#aaa",marginTop:5,fontWeight:600}}>
+                    ⏰ Tendrás 24 horas para subir tu comprobante de pago
+                  </div>
+                )}
+              </div>
               {ferr&&<div className="ferr">⚠ {ferr}</div>}
             </div>
           </>)}
@@ -741,5 +1034,24 @@ export default function App() {
         </div>
       </aside>
     </>)}
+
+    {/* PANTALLA DE PAGO post-pedido */}
+    {pedidoCreado&&(
+      <>
+        <div className="ov" onClick={()=>{}}/>
+        <aside className="panel">
+          <div className="ph">
+            <h2>💳 Realiza tu pago</h2>
+            <button className="closebtn" onClick={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);}}>✕</button>
+          </div>
+          <div className="pb">
+            <PantallaPago
+              pedido={pedidoCreado}
+              onNuevoPedido={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);setForm({nombre:"",telefono:"",entrega:"tienda",colonia:"",direccion:"",estado:"",ciudad:"",metodo_pago:"spei"});}}
+            />
+          </div>
+        </aside>
+      </>
+    )}
   </>);
 }
