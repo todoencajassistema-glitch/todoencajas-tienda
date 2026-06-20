@@ -343,7 +343,8 @@ function ModalDetalles({ prod, todos, onClose, onAgregar, onVerDetalle, enCarrit
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {medidas && <Spec icon="📐" label="Medidas" value={`${prod.largo} × ${prod.ancho} × ${prod.alto} cm`} full />}
                 {tiene(prod.material) && <Spec icon="📦" label="Material" value={prod.material} />}
-                {tiene(prod.resistencia) && <Spec icon="💪" label="Resistencia" value={prod.resistencia} />}
+                {tiene(prod.resistencia) && <Spec icon="💪" label={["Caple","SBS","PET"].includes(prod.material)?"Calibre":prod.material==="Bond"?"Gramaje":"Resistencia"} value={prod.resistencia} />}
+                {tiene(prod.flauta) && <Spec icon="〰️" label="Flauta" value={prod.flauta} />}
               </div>
             </div>
           )}
@@ -662,7 +663,7 @@ function TarjetaProducto({ prod, agregar, added, setAdded, setPanel, setDetalle 
   const waMsg = `Hola, me interesa cotizar una cantidad mayor de *${prod.nombre}* (SKU: ${prod.sku}). ¿Cuál sería el precio por volumen?`;
   return (
     <div className="card" key={prod.id}>
-      <div className="cimg">
+      <div className="cimg" onClick={()=>setDetalle(prod)} style={{cursor:"pointer"}}>
         {prod.imagenes&&prod.imagenes.filter(s=>s&&s.trim()).length>0
           ?<img src={prod.imagenes.filter(s=>s&&s.trim())[0]} alt={prod.nombre}/>
           :<BoxSVG size={58}/>}
