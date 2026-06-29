@@ -13,6 +13,7 @@ function genReferencia(id) {
 }
 const ORANGE      = "#E8681A";
 const ENVIO_GRATIS_MIN = 8000;
+const ENVIO_CDMX = 300;
 
 const ESTADOS_MX = [
   "Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas","Chihuahua",
@@ -604,7 +605,7 @@ function PantallaPago({ pedido, onNuevoPedido }) {
         <div style={{background:"#fff7ed",border:"1.5px solid #fed7aa",borderRadius:12,padding:"14px 16px"}}>
           <div style={{fontSize:13,fontWeight:700,color:"#9a3412",marginBottom:4}}>⏰ Tienes 24 horas para pagar</div>
           <div style={{fontSize:12,color:"#c2410c"}}>
-            Si no subimos tu comprobante antes del <strong>{expiraStr}</strong>, tu pedido se cancelará automáticamente.
+            Si no recibimos tu comprobante antes del <strong>{expiraStr}</strong>, tu pedido se cancelará automáticamente.
           </div>
         </div>
       )}
@@ -782,6 +783,8 @@ export default function App() {
   const totalItems = carrito.reduce((s,i)=>s+i.qty,0);
   const total      = carrito.reduce((s,i)=>s+i.precio*i.qty,0);
   const envioGratis = form.entrega==="cdmx"&&total>=ENVIO_GRATIS_MIN;
+  const costoEnvioCDMX = form.entrega==="cdmx" && !envioGratis ? ENVIO_CDMX : 0;
+  const totalConEnvio = total + costoEnvioCDMX;
 
   const agregar=(prod)=>{
     setCarrito(prev=>{
@@ -818,7 +821,7 @@ export default function App() {
           estado:      form.estado    || null,
           ciudad:      form.ciudad    || null,
           items:       JSON.stringify(carrito.map(i=>({id:i.id,nombre:i.nombre,sku:i.sku,precio:i.precio,qty:i.qty}))),
-          subtotal:    total,
+          subtotal:    totalConEnvio,
           estatus:     "recibido",
           metodo_pago: metodoPago,
           expira_en:   expira,
@@ -1027,6 +1030,18 @@ export default function App() {
             <div className="sub-note" style={{color:envioGratis?"#22c55e":form.entrega==="tienda"?"#888":"#aaa"}}>
               {envioGratis?"🎉 + Envío gratis":form.entrega==="tienda"?"🏪 Sin costo de envío":form.entrega==="cdmx"?"🚚 + Envío CDMX: $300.00":"📦 + Envío foráneo: se cotiza"}
             </div>
+            {costoEnvioCDMX>0&&(
+              <div className="sub" style={{borderTop:"1.5px solid #f0ede8",marginTop:6,paddingTop:6}}>
+                <span className="sub-lbl" style={{fontWeight:800,color:"#1a1a1a"}}>Total a pagar</span>
+                <span className="sub-amt" style={{color:ORANGE}}>{fmt(totalConEnvio)}</span>
+              </div>
+            )}
+            {(envioGratis||form.entrega==="tienda")&&(
+              <div className="sub" style={{borderTop:"1.5px solid #f0ede8",marginTop:6,paddingTop:6}}>
+                <span className="sub-lbl" style={{fontWeight:800,color:"#1a1a1a"}}>Total a pagar</span>
+                <span className="sub-amt" style={{color:ORANGE}}>{fmt(total)}</span>
+              </div>
+            )}
           </>)}
           <button className="wa" onClick={handleWa} disabled={carrito.length===0}>
             <WA/>{carrito.length===0?"Agrega productos para continuar":"Confirmar pedido por WhatsApp"}
