@@ -48,7 +48,7 @@ function buildMsg(carrito, form, total) {
   } else if (form.entrega === "cdmx") {
     envio = total >= ENVIO_GRATIS_MIN
       ? "🚚 *Entrega:* CDMX — Envio GRATIS ✅"
-      : `🚚 *Entrega:* CDMX — Cotizar envio (faltan ${fmt(faltante)} para gratis)`;
+      : "🚚 *Entrega:* CDMX — Costo de envio: $300.00";
     if (form.colonia)   envio += `\n📍 *Colonia/Alcaldia:* ${form.colonia}`;
     if (form.direccion) envio += `\n🏠 *Direccion:* ${form.direccion}`;
   } else {
@@ -394,7 +394,7 @@ function EnvioInfo({entrega,total}){
       </div>
     </div>
     {gratis?<div style={ib("green")}><B>🚚 Envío gratis a toda CDMX ✅</B>Tu pedido supera los {fmt(ENVIO_GRATIS_MIN)}. Coordinamos la entrega sin costo.</div>
-      :<div style={ib("orange")}><B>🚚 Entrega CDMX — cotización por WhatsApp</B>Pedidos menores a {fmt(ENVIO_GRATIS_MIN)} tienen costo de envío. Te cotizamos al confirmar.</div>}
+      :<div style={ib("orange")}><B>🚚 Entrega CDMX — $300.00</B>Envío a domicilio en toda CDMX por $300.00 fijos. Gratis en pedidos mayores a {fmt(ENVIO_GRATIS_MIN)}.</div>}
   </>);
   if(entrega==="foraneo") return <div style={ib("blue")}><B>📦 Envío foráneo — cotización por paquetería</B>Al confirmar por WhatsApp te cotizamos según destino y peso total.</div>;
   return null;
@@ -1025,7 +1025,7 @@ export default function App() {
           {carrito.length>0&&(<>
             <div className="sub"><span className="sub-lbl">Subtotal productos</span><span className="sub-amt">{fmt(total)}</span></div>
             <div className="sub-note" style={{color:envioGratis?"#22c55e":form.entrega==="tienda"?"#888":"#aaa"}}>
-              {envioGratis?"🎉 + Envío gratis":form.entrega==="tienda"?"🏪 Sin costo de envío":"📋 + Envío: se cotiza por WhatsApp"}
+              {envioGratis?"🎉 + Envío gratis":form.entrega==="tienda"?"🏪 Sin costo de envío":form.entrega==="cdmx"?"🚚 + Envío CDMX: $300.00":"📦 + Envío foráneo: se cotiza"}
             </div>
           </>)}
           <button className="wa" onClick={handleWa} disabled={carrito.length===0}>
