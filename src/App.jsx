@@ -3,8 +3,10 @@ import { useState, useEffect, useRef } from "react";
 const SUPABASE_URL = "https://tbsnhkerfkovxsgreqqy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRic25oa2VyZmtvdnhzZ3JlcXF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mjg5NTEsImV4cCI6MjA5NTIwNDk1MX0.lIMcF5ATSBr9rQKxv_PGz0btEIF7uZB6z5O_DBw5f_Y";
 const WA_NUMBER   = "5215522688744";
-const CLABE       = "072180012204779882";
-const BANCO       = "Banorte";
+const CLABE        = "072180012204779882";
+const BANCO        = "Banorte";
+const CLABE2       = "044180001068158552";
+const BANCO2       = "Scotiabank";
 const BENEFICIARIO = "Edgar Celaya Arellano";
 
 function genReferencia(id) {
@@ -59,7 +61,7 @@ function buildMsg(carrito, form, total, referencia="") {
     if (form.estado) envio += `\n🗺️ *Estado:* ${form.estado}`;
     if (form.ciudad) envio += `\n🏙️ *Ciudad/CP:* ${form.ciudad}`;
   }
-  const linkSeguimiento = referencia ? `\n\n🔗 *Seguimiento y comprobante:*\nhttps://todoencajas.com/pedido/${referencia}` : "";
+  const linkSeguimiento = referencia ? `\n\n🔖 *Número de pedido:* ${referencia}\n🔗 *Seguimiento:* https://todoencajas.com/pedido/${referencia}` : "";
   return encodeURIComponent([
     "🛍️ *Nuevo pedido — TodoEnCajas.com*","",
     `👤 *Nombre:* ${form.nombre}`,`📱 *Telefono:* ${form.telefono}`,
@@ -513,6 +515,34 @@ footer p{font-size:12px;color:#888;line-height:1.6}
 
 /* ─── Pantalla de pago post-pedido ─────────────────────────────────────── */
 
+function PaginaBancoSelector({ pedido }) {
+  const [banco, setBanco] = useState("banorte");
+  return (
+    <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px"}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para tu pago</div>
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        {[{id:"banorte",label:"🏦 Banorte"},{id:"scotiabank",label:"🏦 Scotiabank"}].map(b=>(
+          <button key={b.id} onClick={()=>setBanco(b.id)} style={{flex:1,padding:"7px",borderRadius:8,border:`1.5px solid ${banco===b.id?"#3b82f6":"#dbeafe"}`,background:banco===b.id?"#1e40af":"#fff",color:banco===b.id?"#fff":"#3b82f6",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+            {b.label}
+          </button>
+        ))}
+      </div>
+      {[
+        ["Banco", banco==="banorte" ? BANCO : BANCO2],
+        ["Beneficiario", BENEFICIARIO],
+        ["CLABE", banco==="banorte" ? CLABE : CLABE2],
+        ["Monto exacto", fmt(pedido.subtotal)],
+        ["Referencia", pedido.referencia],
+      ].map(([k,v]) => (
+        <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #dbeafe",fontSize:13}}>
+          <span style={{color:"#3b82f6",fontWeight:600}}>{k}</span>
+          <span style={{fontWeight:800,color:"#1e3a8a",textAlign:"right",maxWidth:"60%"}}>{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Página de seguimiento de pedido ──────────────────────────────────── */
 function PaginaPedido({ referencia, onVolver }) {
   const [pedido, setPedido]   = useState(null);
@@ -699,21 +729,7 @@ function PaginaPedido({ referencia, onVolver }) {
 
       {/* Datos SPEI si aplica */}
       {puedeSubir && pedido.estatus==="recibido" && (
-        <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px"}}>
-          <div style={{fontSize:11,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para tu pago</div>
-          {[
-            ["Banco", BANCO],
-            ["Beneficiario", BENEFICIARIO],
-            ["CLABE", CLABE],
-            ["Monto exacto", fmt(pedido.subtotal)],
-            ["Referencia", pedido.referencia],
-          ].map(([k,v]) => (
-            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #dbeafe",fontSize:13}}>
-              <span style={{color:"#3b82f6",fontWeight:600}}>{k}</span>
-              <span style={{fontWeight:800,color:"#1e3a8a"}}>{v}</span>
-            </div>
-          ))}
-        </div>
+        <PaginaBancoSelector pedido={pedido} />
       )}
 
       {/* Subir comprobante */}
@@ -872,10 +888,18 @@ function PantallaPago({ pedido, onNuevoPedido }) {
       {!esEfectivo ? (
         <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"16px"}}>
           <div style={{fontSize:12,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para SPEI / Transferencia</div>
+          {/* Selector de banco */}
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            {[{id:"banorte",label:"🏦 Banorte"},{id:"scotiabank",label:"🏦 Scotiabank"}].map(b=>(
+              <button key={b.id} onClick={()=>setBanco(b.id)} style={{flex:1,padding:"8px",borderRadius:8,border:`1.5px solid ${banco===b.id?"#3b82f6":"#dbeafe"}`,background:banco===b.id?"#1e40af":"#fff",color:banco===b.id?"#fff":"#3b82f6",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                {b.label}
+              </button>
+            ))}
+          </div>
           {[
-            ["Banco", BANCO],
+            ["Banco", banco==="banorte" ? BANCO : BANCO2],
             ["Beneficiario", BENEFICIARIO],
-            ["CLABE", CLABE],
+            ["CLABE", banco==="banorte" ? CLABE : CLABE2],
             ["Monto exacto", fmt(pedido.subtotal)],
             ["Referencia", pedido.referencia],
           ].map(([k,v]) => (
