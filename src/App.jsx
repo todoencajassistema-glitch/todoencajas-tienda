@@ -532,12 +532,30 @@ function PaginaPedido({ referencia, onVolver }) {
   }, [referencia]);
 
   const ESTATUS_INFO = {
-    recibido:        { ico: "📥", label: "Recibido",         color: "#9a3412", bg: "#fff7ed" },
-    pago_recibido:   { ico: "💳", label: "Pago recibido",    color: "#1e40af", bg: "#eff6ff" },
-    pago_confirmado: { ico: "✅", label: "Pago confirmado",  color: "#166534", bg: "#f0fdf4" },
-    entregado:       { ico: "🎉", label: "Entregado",        color: "#166534", bg: "#f0fdf4" },
-    cancelado:       { ico: "❌", label: "Cancelado",        color: "#991b1b", bg: "#fef2f2" },
+    recibido:         { ico: "📥", label: "Recibido",            color: "#9a3412", bg: "#fff7ed",  msg: "Recibimos tu pedido, en breve te confirmamos." },
+    pago_recibido:    { ico: "💳", label: "Pago recibido",       color: "#1e40af", bg: "#eff6ff",  msg: "Recibimos tu comprobante, estamos verificando tu pago." },
+    pago_confirmado:  { ico: "✅", label: "Pago confirmado",     color: "#166534", bg: "#f0fdf4",  msg: "¡Pago verificado! Tu pedido está siendo preparado." },
+    en_preparacion:   { ico: "📦", label: "En preparación",      color: "#854d0e", bg: "#fefce8",  msg: "Estamos preparando tu pedido con cuidado." },
+    en_camino:        { ico: "🚚", label: "En camino",           color: "#1e40af", bg: "#eff6ff",  msg: "Tu pedido va en camino." },
+    listo_recoger:    { ico: "📬", label: "Listo para recoger",  color: "#166534", bg: "#f0fdf4",  msg: "¡Tu pedido está listo! Pasa a recogerlo a nuestra tienda." },
+    entregado:        { ico: "🎉", label: "Entregado",           color: "#166534", bg: "#f0fdf4",  msg: "¡Pedido entregado! Gracias por tu compra en Todo en Cajas." },
+    cancelado:        { ico: "❌", label: "Cancelado",           color: "#991b1b", bg: "#fef2f2",  msg: "Este pedido fue cancelado." },
   };
+
+  // Pasos del progreso según tipo de entrega
+  const PASOS_TIENDA   = ["recibido","pago_recibido","pago_confirmado","en_preparacion","listo_recoger","entregado"];
+  const PASOS_CDMX     = ["recibido","pago_recibido","pago_confirmado","en_preparacion","en_camino","entregado"];
+  const PASOS_FORANEO  = ["recibido","pago_recibido","pago_confirmado","en_preparacion","en_camino","entregado"];
+  const PASOS_EFECTIVO = ["recibido","en_preparacion","listo_recoger","entregado"];
+
+  const getPasos = (p) => {
+    if (p.metodo_pago === "efectivo") return PASOS_EFECTIVO;
+    if (p.entrega === "tienda")  return PASOS_TIENDA;
+    if (p.entrega === "cdmx")    return PASOS_CDMX;
+    return PASOS_FORANEO;
+  };
+  const pasos = getPasos(pedido);
+  const pasoActual = pasos.indexOf(pedido.estatus);
 
   if (loading) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 24px",gap:16}}>
@@ -572,14 +590,78 @@ function PaginaPedido({ referencia, onVolver }) {
         </div>
       </div>
 
-      {/* Estatus */}
-      <div style={{background:ei.bg,border:`1.5px solid ${ei.color}30`,borderRadius:14,padding:"16px 18px",display:"flex",alignItems:"center",gap:12}}>
-        <span style={{fontSize:28}}>{ei.ico}</span>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px"}}>Estatus del pedido</div>
-          <div style={{fontSize:17,fontWeight:900,color:ei.color}}>{ei.label}</div>
-        </div>
+      {/* Barra de progreso */}
+      <div style={{background:"#fff",border:"1.5px solid #f0ede8",borderRadius:14,padding:"16px 18px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:14}}>Estado de tu pedido</div>
+        {pedido.estatus==="cancelado" ? (
+          <div style={{display:"flex",alignItems:"center",gap:10,background:"#fef2f2",border:"1.5px solid #fecaca",borderRadius:10,padding:"12px 14px"}}>
+            <span style={{fontSize:24}}>❌</span>
+            <div>
+              <div style={{fontSize:14,fontWeight:800,color:"#991b1b"}}>Pedido cancelado</div>
+              <div style={{fontSize:12,color:"#aaa",marginTop:2}}>{ei.msg}</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            {pasos.map((paso, i) => {
+              const info = ESTATUS_INFO[paso];
+              const completado = i < pasoActual;
+              const actual = i === pasoActual;
+              const pendiente = i > pasoActual;
+              return (
+                <div key={paso} style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                  {/* Línea vertical + círculo */}
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
+                    <div style={{
+                      width:32,height:32,borderRadius:"50%",
+                      background: completado ? "#22c55e" : actual ? ei.color : "#f0ede8",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize: completado ? 14 : 16,
+                      color: completado||actual ? "#fff" : "#ccc",
+                      fontWeight:700,
+                      border: actual ? `2px solid ${ei.color}` : "none",
+                      flexShrink:0,
+                    }}>
+                      {completado ? "✓" : info.ico}
+                    </div>
+                    {i < pasos.length-1 && (
+                      <div style={{width:2,height:24,background: completado ? "#22c55e" : "#f0ede8",margin:"2px 0"}}/>
+                    )}
+                  </div>
+                  {/* Texto */}
+                  <div style={{paddingTop:6,paddingBottom: i < pasos.length-1 ? 0 : 0}}>
+                    <div style={{fontSize:13,fontWeight: actual ? 800 : 600,color: pendiente ? "#ccc" : actual ? ei.color : "#555"}}>
+                      {info.label}
+                    </div>
+                    {actual && (
+                      <div style={{fontSize:11,color:"#888",marginTop:2,marginBottom:8}}>{ei.msg}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Info extra según estatus */}
+      {pedido.estatus==="en_camino" && pedido.numero_guia && (
+        <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6}}>📦 Rastreo de paquetería</div>
+          <div style={{fontSize:13,color:"#1e40af"}}>{pedido.paqueteria && <strong>{pedido.paqueteria} — </strong>}Guía: <strong>{pedido.numero_guia}</strong></div>
+        </div>
+      )}
+      {pedido.estatus==="listo_recoger" && (
+        <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#166534",textTransform:"uppercase",letterSpacing:".8px",marginBottom:6}}>📍 Dirección de la tienda</div>
+          <div style={{fontSize:13,color:"#166534",fontWeight:600}}>Visítanos para recoger tu pedido.<br/><span style={{fontWeight:400}}>Trae tu código de referencia: <strong>{pedido.referencia}</strong></span></div>
+        </div>
+      )}
+      {pedido.estatus==="en_camino" && pedido.entrega==="cdmx" && (
+        <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px",fontSize:13,color:"#1e40af",fontWeight:600}}>
+          🚚 Nuestro equipo está llevando tu pedido. En breve llegará a tu domicilio.
+        </div>
+      )}
 
       {/* Productos */}
       <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:12,padding:"14px 16px"}}>
