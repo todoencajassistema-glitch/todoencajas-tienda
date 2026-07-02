@@ -564,13 +564,34 @@ function PantallaPago({ pedido, onNuevoPedido }) {
     <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:16}}>
       {/* Resumen pedido */}
       <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:12,padding:"14px 16px"}}>
-        <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>Tu pedido</div>
-        <div style={{fontSize:16,fontWeight:800,color:"#1a1a1a",marginBottom:4}}>{pedido.nombre}</div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}>
-          <span style={{color:"#666"}}>Total a pagar</span>
-          <span style={{color:ORANGE,fontSize:18,fontWeight:900}}>{fmt(pedido.subtotal)}</span>
+        <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>Tu pedido</div>
+        {/* Lista de productos */}
+        {pedido.items && (typeof pedido.items==="string"?JSON.parse(pedido.items):pedido.items).map((item,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",fontSize:13,color:"#444",marginBottom:6,gap:8}}>
+            <span style={{fontWeight:600,flex:1,lineHeight:1.4}}>{item.nombre} <span style={{color:"#aaa"}}>×{item.qty}</span></span>
+            <span style={{fontWeight:700,flexShrink:0}}>{fmt(item.precio*item.qty)}</span>
+          </div>
+        ))}
+        <div style={{borderTop:"1px solid #f0ede8",marginTop:8,paddingTop:8}}>
+          {/* Subtotal cajas */}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#666",marginBottom:4}}>
+            <span>Subtotal cajas</span>
+            <span style={{fontWeight:700}}>{fmt(pedido.entrega==="cdmx"&&!esEfectivo ? pedido.subtotal-ENVIO_CDMX : pedido.subtotal)}</span>
+          </div>
+          {/* Envío CDMX */}
+          {pedido.entrega==="cdmx"&&!esEfectivo&&(
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#666",marginBottom:8,paddingBottom:8,borderBottom:"1px solid #f0ede8"}}>
+              <span>Envío CDMX</span>
+              <span style={{fontWeight:700}}>{fmt(ENVIO_CDMX)}</span>
+            </div>
+          )}
+          {/* Total */}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:15,fontWeight:900,marginTop:4}}>
+            <span style={{color:"#1a1a1a"}}>Total a pagar</span>
+            <span style={{color:ORANGE,fontSize:20}}>{fmt(pedido.subtotal)}</span>
+          </div>
         </div>
-        <div style={{fontSize:12,color:"#aaa",marginTop:4}}>Ref: <strong style={{color:"#1a1a1a"}}>{pedido.referencia}</strong></div>
+        <div style={{fontSize:12,color:"#aaa",marginTop:6}}>Ref: <strong style={{color:"#1a1a1a"}}>{pedido.referencia}</strong></div>
       </div>
 
       {/* Método de pago */}
