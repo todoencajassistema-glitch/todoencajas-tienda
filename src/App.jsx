@@ -881,6 +881,68 @@ function TarjetaProducto({ prod, agregar, added, setAdded, setPanel, setDetalle 
   );
 }
 
+/* ─── Buscador de pedido flotante ──────────────────────────────────────── */
+function BuscadorPedido({ onIr }) {
+  const [abierto, setAbierto] = useState(false);
+  const [ref, setRef]         = useState("");
+
+  const buscar = () => {
+    const limpio = ref.trim().toUpperCase();
+    if (!limpio) return;
+    onIr(limpio);
+    setAbierto(false);
+    setRef("");
+  };
+
+  return (
+    <>
+      {/* Mini modal de búsqueda */}
+      {abierto && (
+        <div style={{position:"fixed",bottom:100,right:16,zIndex:151,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(0,0,0,.18)",padding:"16px",width:280,border:"1.5px solid #f0ede8"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#1a1a1a",marginBottom:4}}>📦 Consulta tu pedido</div>
+          <div style={{fontSize:12,color:"#aaa",marginBottom:10}}>Ingresa tu código de referencia</div>
+          <div style={{display:"flex",gap:8}}>
+            <input
+              type="text"
+              placeholder="TEC-2026-00001"
+              value={ref}
+              onChange={e=>setRef(e.target.value.toUpperCase())}
+              onKeyDown={e=>e.key==="Enter"&&buscar()}
+              style={{flex:1,border:"1.5px solid #e5e1db",borderRadius:10,padding:"8px 12px",fontFamily:"Inter,sans-serif",fontSize:13,outline:"none",textTransform:"uppercase"}}
+              autoFocus
+            />
+            <button onClick={buscar} style={{background:ORANGE,color:"#fff",border:"none",borderRadius:10,padding:"8px 14px",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+              Ver
+            </button>
+          </div>
+          <button onClick={()=>setAbierto(false)} style={{marginTop:8,background:"none",border:"none",color:"#aaa",fontSize:12,cursor:"pointer",width:"100%",textAlign:"center"}}>
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {/* Botón flotante */}
+      <button
+        onClick={()=>setAbierto(a=>!a)}
+        style={{
+          position:"fixed", bottom:92, right:24, zIndex:150,
+          background:"#1a1a1a", color:"#fff",
+          borderRadius:28, border:"none",
+          padding:"10px 16px", cursor:"pointer",
+          display:"flex", alignItems:"center", gap:8,
+          fontFamily:"Inter,sans-serif", fontWeight:700, fontSize:12,
+          boxShadow:"0 4px 16px rgba(0,0,0,.25)",
+          transition:"transform .15s",
+        }}
+        onMouseOver={e=>e.currentTarget.style.transform="scale(1.05)"}
+        onMouseOut={e=>e.currentTarget.style.transform="scale(1)"}
+      >
+        🔍 Mi pedido
+      </button>
+    </>
+  );
+}
+
 export default function App() {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -1131,6 +1193,9 @@ export default function App() {
     </main>
 
     <footer><div className="fl">TODO EN <span>CAJAS</span>.COM</div><p>CDMX · Empaque profesional para tu negocio<br/>WhatsApp: 55 2268 8744</p></footer>
+
+    {/* Botón flotante consulta tu pedido */}
+    <BuscadorPedido onIr={ref => setPaginaPedido(ref)} />
 
     {/* Botón flotante WhatsApp ayuda */}
     <a href="https://wa.me/525522688744?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pedido%20en%20Todo%20en%20Cajas" target="_blank" rel="noopener noreferrer"
