@@ -41,7 +41,7 @@ function fmt(n) {
 }
 function tiene(v){ return v !== null && v !== undefined && v !== "" && v !== "—"; }
 
-function buildMsg(carrito, form, total) {
+function buildMsg(carrito, form, total, referencia="") {
   const faltante = ENVIO_GRATIS_MIN - total;
   let envio = "";
   if (form.entrega === "tienda") {
@@ -57,12 +57,13 @@ function buildMsg(carrito, form, total) {
     if (form.estado) envio += `\n🗺️ *Estado:* ${form.estado}`;
     if (form.ciudad) envio += `\n🏙️ *Ciudad/CP:* ${form.ciudad}`;
   }
+  const linkSeguimiento = referencia ? `\n\n🔗 *Seguimiento y comprobante:*\nhttps://todoencajas.com/pedido/${referencia}` : "";
   return encodeURIComponent([
     "🛍️ *Nuevo pedido — TodoEnCajas.com*","",
     `👤 *Nombre:* ${form.nombre}`,`📱 *Telefono:* ${form.telefono}`,
     envio,"","*Productos:*",
     ...carrito.map(i=>`• ${i.nombre} (SKU: ${i.sku}) x${i.qty} = ${fmt(i.precio*i.qty)}`),
-    "",`💰 *Subtotal: ${fmt(total)}*`,"","_(Pedido desde la tienda en linea)_",
+    "",`💰 *Subtotal: ${fmt(total)}*`,"","_(Pedido desde la tienda en linea)_" + linkSeguimiento,
   ].join("\n"));
 }
 
@@ -509,11 +510,183 @@ footer p{font-size:12px;color:#888;line-height:1.6}
 
 
 /* ─── Pantalla de pago post-pedido ─────────────────────────────────────── */
+
+/* ─── Página de seguimiento de pedido ──────────────────────────────────── */
+function PaginaPedido({ referencia, onVolver }) {
+  const [pedido, setPedido]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+
+  useEffect(() => {
+    if (!referencia) return;
+    fetch(`${SUPABASE_URL}/rest/v1/pedidos?referencia=eq.${referencia}&select=*`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.length > 0) setPedido(data[0]);
+      else setError("No encontramos un pedido con esa referencia.");
+      setLoading(false);
+    })
+    .catch(() => { setError("Error al buscar el pedido."); setLoading(false); });
+  }, [referencia]);
+
+  const ESTATUS_INFO = {
+    recibido:        { ico: "📥", label: "Recibido",         color: "#9a3412", bg: "#fff7ed" },
+    pago_recibido:   { ico: "💳", label: "Pago recibido",    color: "#1e40af", bg: "#eff6ff" },
+    pago_confirmado: { ico: "✅", label: "Pago confirmado",  color: "#166534", bg: "#f0fdf4" },
+    entregado:       { ico: "🎉", label: "Entregado",        color: "#166534", bg: "#f0fdf4" },
+    cancelado:       { ico: "❌", label: "Cancelado",        color: "#991b1b", bg: "#fef2f2" },
+  };
+
+  if (loading) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 24px",gap:16}}>
+      <div style={{width:32,height:32,border:"3px solid #f0ede8",borderTopColor:ORANGE,borderRadius:"50%",animation:"sp .7s linear infinite"}}/>
+      <div style={{fontSize:14,color:"#aaa"}}>Buscando tu pedido...</div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{padding:"40px 24px",textAlign:"center"}}>
+      <div style={{fontSize:40,marginBottom:12}}>🔍</div>
+      <div style={{fontSize:16,fontWeight:700,color:"#1a1a1a",marginBottom:8}}>Pedido no encontrado</div>
+      <div style={{fontSize:13,color:"#888",marginBottom:20}}>{error}</div>
+      <button onClick={onVolver} style={{background:ORANGE,color:"#fff",border:"none",borderRadius:12,padding:"11px 24px",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+        Volver a la tienda
+      </button>
+    </div>
+  );
+
+  const ei = ESTATUS_INFO[pedido.estatus] || ESTATUS_INFO.recibido;
+  const items = typeof pedido.items==="string" ? JSON.parse(pedido.items) : pedido.items || [];
+  const puedeSubir = ["recibido","pago_recibido"].includes(pedido.estatus) && pedido.metodo_pago !== "efectivo";
+
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",padding:"24px 16px",display:"flex",flexDirection:"column",gap:16}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4}}>
+        <button onClick={onVolver} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#888"}}>←</button>
+        <div>
+          <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a"}}>Tu pedido</div>
+          <div style={{fontSize:13,color:"#aaa",fontWeight:600}}>{pedido.referencia}</div>
+        </div>
+      </div>
+
+      {/* Estatus */}
+      <div style={{background:ei.bg,border:`1.5px solid ${ei.color}30`,borderRadius:14,padding:"16px 18px",display:"flex",alignItems:"center",gap:12}}>
+        <span style={{fontSize:28}}>{ei.ico}</span>
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px"}}>Estatus del pedido</div>
+          <div style={{fontSize:17,fontWeight:900,color:ei.color}}>{ei.label}</div>
+        </div>
+      </div>
+
+      {/* Productos */}
+      <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:12,padding:"14px 16px"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>Productos</div>
+        {items.map((item,i) => (
+          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#444",marginBottom:6}}>
+            <span style={{fontWeight:600}}>{item.nombre} <span style={{color:"#aaa"}}>×{item.qty}</span></span>
+            <span style={{fontWeight:700}}>{fmt(item.precio*item.qty)}</span>
+          </div>
+        ))}
+        <div style={{borderTop:"1px solid #f0ede8",marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:15}}>
+          <span>Total pagado</span>
+          <span style={{color:ORANGE}}>{fmt(pedido.subtotal)}</span>
+        </div>
+      </div>
+
+      {/* Datos SPEI si aplica */}
+      {puedeSubir && pedido.estatus==="recibido" && (
+        <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para tu pago</div>
+          {[
+            ["Banco", BANCO],
+            ["Beneficiario", BENEFICIARIO],
+            ["CLABE", CLABE],
+            ["Monto exacto", fmt(pedido.subtotal)],
+            ["Referencia", pedido.referencia],
+          ].map(([k,v]) => (
+            <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #dbeafe",fontSize:13}}>
+              <span style={{color:"#3b82f6",fontWeight:600}}>{k}</span>
+              <span style={{fontWeight:800,color:"#1e3a8a"}}>{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Subir comprobante */}
+      {puedeSubir && (
+        <PantallaPagoComprobante pedido={pedido} onSubido={()=>setPedido(p=>({...p,estatus:"pago_recibido"}))} />
+      )}
+
+      {/* Comprobante ya subido */}
+      {pedido.estatus==="pago_recibido" && (
+        <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 16px",fontSize:13,color:"#166534",fontWeight:600}}>
+          ✅ Comprobante recibido. Estamos verificando tu pago.
+        </div>
+      )}
+
+      <button onClick={onVolver} style={{background:"#f5f3ef",color:"#555",border:"1.5px solid #e5e1db",borderRadius:12,padding:"11px 24px",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+        Volver a la tienda
+      </button>
+    </div>
+  );
+}
+
+/* Subcomponente solo para subir comprobante (reutilizable) */
+function PantallaPagoComprobante({ pedido, onSubido }) {
+  const [subiendo, setSubiendo] = useState(false);
+  const [subido, setSubido]     = useState(false);
+  const [error, setError]       = useState("");
+  const fileRef = useRef();
+
+  const subirComprobante = async (file) => {
+    setSubiendo(true); setError("");
+    try {
+      const ext  = file.name.split(".").pop();
+      const path = `${pedido.referencia}-${Date.now()}.${ext}`;
+      const r = await fetch(`${SUPABASE_URL}/storage/v1/object/comprobantes/${path}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": file.type, "x-upsert": "true" },
+        body: file,
+      });
+      if (!r.ok) throw new Error("Error al subir");
+      const url = `${SUPABASE_URL}/storage/v1/object/public/comprobantes/${path}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/pedidos?id=eq.${pedido.id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ comprobante_url: url, estatus: "pago_recibido" }),
+      });
+      setSubido(true);
+      if (onSubido) onSubido();
+    } catch(e) { setError("Error al subir el comprobante. Intenta de nuevo."); }
+    setSubiendo(false);
+  };
+
+  if (subido) return (
+    <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 16px",fontSize:13,color:"#166534",fontWeight:700,textAlign:"center"}}>
+      ✅ ¡Comprobante subido exitosamente!
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{fontSize:12,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>📎 Sube tu comprobante</div>
+      <div onClick={()=>fileRef.current.click()} style={{border:"2px dashed #e5e1db",borderRadius:12,padding:"20px",textAlign:"center",cursor:"pointer",background:"#fafaf8"}}>
+        {subiendo
+          ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}><div style={{width:24,height:24,border:"3px solid #f0ede8",borderTopColor:ORANGE,borderRadius:"50%",animation:"sp .7s linear infinite"}}/><span style={{fontSize:13,color:"#aaa"}}>Subiendo...</span></div>
+          : <><div style={{fontSize:28,marginBottom:6}}>📸</div><div style={{fontSize:13,fontWeight:700,color:"#555"}}>Toca para subir foto o PDF</div></>
+        }
+      </div>
+      <input ref={fileRef} type="file" accept="image/*,.pdf" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f)subirComprobante(f);}} />
+      {error && <div style={{fontSize:13,color:"#e53935",fontWeight:600,marginTop:8}}>⚠ {error}</div>}
+    </div>
+  );
+}
+
 function PantallaPago({ pedido, onNuevoPedido }) {
-  const [comprobante, setComprobante] = useState(null);
-  const [subiendo, setSubiendo]       = useState(false);
-  const [subido, setSubido]           = useState(false);
-  const [error, setError]             = useState("");
+  const [subido, setSubido] = useState(false);
   const fileRef = useRef();
 
   const esEfectivo = pedido.metodo_pago === "efectivo";
@@ -632,39 +805,14 @@ function PantallaPago({ pedido, onNuevoPedido }) {
       )}
 
       {/* Subir comprobante — solo para SPEI */}
-      {!esEfectivo && (
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>
-            📎 Sube tu comprobante de pago
-          </div>
-          <div
-            onClick={() => fileRef.current.click()}
-            style={{
-              border: "2px dashed #e5e1db", borderRadius:12, padding:"24px",
-              textAlign:"center", cursor:"pointer", background:"#fafaf8",
-              transition:"all .15s",
-            }}
-            onMouseOver={e=>{e.currentTarget.style.borderColor=ORANGE;e.currentTarget.style.background="#fff7f2";}}
-            onMouseOut={e=>{e.currentTarget.style.borderColor="#e5e1db";e.currentTarget.style.background="#fafaf8";}}
-          >
-            {subiendo ? (
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-                <div style={{width:28,height:28,border:"3px solid #f0ede8",borderTopColor:ORANGE,borderRadius:"50%",animation:"sp .7s linear infinite"}}/>
-                <span style={{fontSize:13,color:"#aaa",fontWeight:600}}>Subiendo...</span>
-              </div>
-            ) : comprobante ? (
-              <div style={{fontSize:13,fontWeight:700,color:"#22c55e"}}>✓ {comprobante.name}</div>
-            ) : (
-              <>
-                <div style={{fontSize:32,marginBottom:8}}>📸</div>
-                <div style={{fontSize:13,fontWeight:700,color:"#555"}}>Toca para subir foto o PDF</div>
-                <div style={{fontSize:11,color:"#aaa",marginTop:4}}>Captura de pantalla, foto o PDF del comprobante</div>
-              </>
-            )}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*,.pdf" style={{display:"none"}}
-            onChange={e => { const f = e.target.files[0]; if(f){setComprobante(f);subirComprobante(f);} }} />
-          {error && <div style={{fontSize:13,color:"#e53935",fontWeight:600,marginTop:8}}>⚠ {error}</div>}
+      {!esEfectivo && !subido && (
+        <PantallaPagoComprobante pedido={pedido} onSubido={()=>setSubido(true)} />
+      )}
+      {/* Link para volver después */}
+      {!esEfectivo && !subido && (
+        <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:12,padding:"12px 14px",fontSize:12,color:"#92400e",fontWeight:600}}>
+          💡 ¿Vas a pagar después? Guarda este link para subir tu comprobante:<br/>
+          <a href={`${window.location.origin}/pedido/${pedido.referencia}`} style={{color:ORANGE,fontWeight:800,wordBreak:"break-all"}}>{window.location.origin}/pedido/{pedido.referencia}</a>
         </div>
       )}
 
@@ -740,6 +888,14 @@ export default function App() {
   const [cat, setCat]             = useState("Todos");
   const [carrito, setCarrito]     = useState([]);
   const [panel, setPanel]         = useState(false);
+  const [paginaPedido, setPaginaPedido] = useState(null); // referencia del pedido a ver
+
+  // Detectar URL /pedido/TEC-2026-XXXXX
+  useEffect(() => {
+    const path = window.location.pathname;
+    const m = path.match(/^\/pedido\/([A-Z0-9-]+)$/i);
+    if (m) setPaginaPedido(m[1]);
+  }, []);
   const [added, setAdded]         = useState(null);
   const [busqueda, setBusqueda]   = useState("");
   const [detalle, setDetalle]     = useState(null);
@@ -858,15 +1014,27 @@ export default function App() {
         body: JSON.stringify({ referencia }),
       });
       // Abrir WhatsApp con el resumen
-      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
+      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total,referencia)}`, "_blank");
       // Mostrar pantalla de pago
       setPedidoCreado({ ...pedido, referencia, metodo_pago: metodoPago, expira_en: expira });
     } catch(e) {
       console.error("Error guardando pedido:", e);
       // Si falla Supabase, igual abrir WhatsApp
-      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total)}`, "_blank");
+      window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total,"")}`, "_blank");
     }
   };
+
+  // Si estamos en /pedido/:ref mostrar página de seguimiento
+  if (paginaPedido) return (
+    <div style={{minHeight:"100vh",background:"#f5f5f0",fontFamily:"Inter,sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'); @keyframes sp{to{transform:rotate(360deg)}}`}</style>
+      <div style={{background:"#fff",borderBottom:"1px solid #f0ede8",padding:"14px 20px",display:"flex",alignItems:"center",gap:10}}>
+        <BoxSVG size={28} color={ORANGE}/>
+        <span style={{fontSize:16,fontWeight:900,textTransform:"uppercase",letterSpacing:"-.3px"}}>TODO EN <span style={{color:ORANGE}}>CAJAS</span>.COM</span>
+      </div>
+      <PaginaPedido referencia={paginaPedido} onVolver={()=>{setPaginaPedido(null);window.history.pushState({},"","/");}} />
+    </div>
+  );
 
   return(<>
     <style>{css}</style>
