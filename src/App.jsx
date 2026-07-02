@@ -549,13 +549,14 @@ function PaginaPedido({ referencia, onVolver }) {
   const PASOS_EFECTIVO = ["recibido","en_preparacion","listo_recoger","entregado"];
 
   const getPasos = (p) => {
+    if (!p) return PASOS_CDMX;
     if (p.metodo_pago === "efectivo") return PASOS_EFECTIVO;
     if (p.entrega === "tienda")  return PASOS_TIENDA;
     if (p.entrega === "cdmx")    return PASOS_CDMX;
     return PASOS_FORANEO;
   };
-  const pasos = getPasos(pedido);
-  const pasoActual = pasos.indexOf(pedido.estatus);
+  const pasos = pedido ? getPasos(pedido) : [];
+  const pasoActual = pedido ? pasos.indexOf(pedido.estatus) : -1;
 
   if (loading) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 24px",gap:16}}>
@@ -575,9 +576,9 @@ function PaginaPedido({ referencia, onVolver }) {
     </div>
   );
 
-  const ei = ESTATUS_INFO[pedido.estatus] || ESTATUS_INFO.recibido;
+  const ei = pedido ? (ESTATUS_INFO[pedido.estatus] || ESTATUS_INFO.recibido) : ESTATUS_INFO.recibido;
   const items = typeof pedido.items==="string" ? JSON.parse(pedido.items) : pedido.items || [];
-  const puedeSubir = ["recibido","pago_recibido"].includes(pedido.estatus) && pedido.metodo_pago !== "efectivo";
+  const puedeSubir = pedido && ["recibido","pago_recibido"].includes(pedido.estatus) && pedido.metodo_pago !== "efectivo";
 
   return (
     <div style={{maxWidth:480,margin:"0 auto",padding:"24px 16px",display:"flex",flexDirection:"column",gap:16}}>
