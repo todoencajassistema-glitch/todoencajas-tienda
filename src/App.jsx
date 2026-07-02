@@ -50,8 +50,10 @@ function buildMsg(carrito, form, total, referencia="") {
     envio = total >= ENVIO_GRATIS_MIN
       ? "🚚 *Entrega:* CDMX — Envio GRATIS ✅"
       : "🚚 *Entrega:* CDMX — Costo de envio: $300.00";
-    if (form.colonia)   envio += `\n📍 *Colonia/Alcaldia:* ${form.colonia}`;
-    if (form.direccion) envio += `\n🏠 *Direccion:* ${form.direccion}`;
+    if (form.calle)     envio += `\n🏠 *Calle y número:* ${form.calle}`;
+    if (form.colonia)   envio += `\n🏘️ *Colonia:* ${form.colonia}`;
+    if (form.alcaldia)  envio += `\n🏙️ *Alcaldía:* ${form.alcaldia}`;
+    if (form.cp)        envio += `\n📮 *CP:* ${form.cp}`;
   } else {
     envio = "📦 *Entrega:* Foraneo — Cotizar paqueteria";
     if (form.estado) envio += `\n🗺️ *Estado:* ${form.estado}`;
@@ -516,19 +518,29 @@ function PaginaPedido({ referencia, onVolver }) {
   const [pedido, setPedido]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
 
-  useEffect(() => {
+  const fetchPedido = (inicial = false) => {
     if (!referencia) return;
     fetch(`${SUPABASE_URL}/rest/v1/pedidos?referencia=eq.${referencia}&select=*`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     })
     .then(r => r.json())
     .then(data => {
-      if (data && data.length > 0) setPedido(data[0]);
-      else setError("No encontramos un pedido con esa referencia.");
-      setLoading(false);
+      if (data && data.length > 0) {
+        setPedido(data[0]);
+        setUltimaActualizacion(new Date());
+      } else if (inicial) setError("No encontramos un pedido con esa referencia.");
+      if (inicial) setLoading(false);
     })
-    .catch(() => { setError("Error al buscar el pedido."); setLoading(false); });
+    .catch(() => { if (inicial) { setError("Error al buscar el pedido."); setLoading(false); } });
+  };
+
+  useEffect(() => {
+    fetchPedido(true);
+    // Actualizar automáticamente cada 30 segundos
+    const intervalo = setInterval(() => fetchPedido(false), 30000);
+    return () => clearInterval(intervalo);
   }, [referencia]);
 
   const ESTATUS_INFO = {
@@ -585,9 +597,15 @@ function PaginaPedido({ referencia, onVolver }) {
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4}}>
         <button onClick={onVolver} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#888"}}>←</button>
-        <div>
+        <div style={{flex:1}}>
           <div style={{fontSize:18,fontWeight:900,color:"#1a1a1a"}}>Tu pedido</div>
           <div style={{fontSize:13,color:"#aaa",fontWeight:600}}>{pedido.referencia}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:10,color:"#ccc",fontWeight:600}}>Actualiza cada 30s</div>
+          {ultimaActualizacion && (
+            <div style={{fontSize:10,color:"#aaa"}}>{ultimaActualizacion.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})}</div>
+          )}
         </div>
       </div>
 
@@ -891,11 +909,14 @@ function PantallaPago({ pedido, onNuevoPedido }) {
       {!esEfectivo && !subido && (
         <PantallaPagoComprobante pedido={pedido} onSubido={()=>setSubido(true)} />
       )}
-      {/* Link para volver después */}
+      {/* Número de pedido para guardar */}
       {!esEfectivo && !subido && (
-        <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:12,padding:"12px 14px",fontSize:12,color:"#92400e",fontWeight:600}}>
-          💡 ¿Vas a pagar después? Guarda este link para subir tu comprobante:<br/>
-          <a href={`${window.location.origin}/pedido/${pedido.referencia}`} style={{color:ORANGE,fontWeight:800,wordBreak:"break-all"}}>{window.location.origin}/pedido/{pedido.referencia}</a>
+        <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:12,padding:"14px 16px",textAlign:"center"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>📋 Guarda tu número de pedido</div>
+          <div style={{fontSize:24,fontWeight:900,color:ORANGE,letterSpacing:"1px",marginBottom:8}}>{pedido.referencia}</div>
+          <div style={{fontSize:12,color:"#666",lineHeight:1.6}}>
+            Con este número podrás consultar el <strong>estatus de tu pedido</strong> y subir tu comprobante usando el botón <strong>"🔍 Mi pedido"</strong> en la tienda. Recuerda que tienes <strong style={{color:ORANGE}}>máximo 24 horas</strong> para realizar tu pago, de lo contrario tu pedido quedará <strong style={{color:"#dc2626"}}>cancelado automáticamente</strong>.
+          </div>
         </div>
       )}
 
@@ -1044,7 +1065,7 @@ export default function App() {
   const [added, setAdded]         = useState(null);
   const [busqueda, setBusqueda]   = useState("");
   const [detalle, setDetalle]     = useState(null);
-  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", colonia:"", direccion:"", estado:"", ciudad:"", metodo_pago:"spei" });
+  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", calle:"", colonia:"", alcaldia:"", cp:"", estado:"", ciudad:"", metodo_pago:"spei" });
   const [ferr, setFerr]           = useState("");
   const [pedidoCreado, setPedidoCreado] = useState(null);
 
@@ -1139,7 +1160,9 @@ export default function App() {
           telefono:    form.telefono,
           entrega:     form.entrega,
           colonia:     form.colonia   || null,
-          direccion:   form.direccion || null,
+          direccion:   form.calle     || null,
+          alcaldia:    form.alcaldia  || null,
+          cp:          form.cp        || null,
           estado:      form.estado    || null,
           ciudad:      form.ciudad    || null,
           items:       JSON.stringify(carrito.map(i=>({id:i.id,nombre:i.nombre,sku:i.sku,precio:i.precio,qty:i.qty}))),
@@ -1330,8 +1353,15 @@ export default function App() {
               </div>
               <EnvioInfo entrega={form.entrega} total={total}/>
               {form.entrega==="cdmx"&&(<>
-                <div><label className="lbl">Colonia / Alcaldía</label><input className="inp" placeholder="Ej. Roma Norte" value={form.colonia} onChange={setF("colonia")}/></div>
-                <div><label className="lbl">Dirección</label><input className="inp" placeholder="Calle, número, referencias" value={form.direccion} onChange={setF("direccion")}/></div>
+                <div><label className="lbl">Calle y número *</label><input className="inp" placeholder="Ej. Av. Insurgentes Sur 1234" value={form.calle} onChange={setF("calle")}/></div>
+                <div><label className="lbl">Colonia</label><input className="inp" placeholder="Ej. Del Valle" value={form.colonia} onChange={setF("colonia")}/></div>
+                <div><label className="lbl">Alcaldía</label>
+                  <select className="inp" value={form.alcaldia} onChange={setF("alcaldia")}>
+                    <option value="">Selecciona alcaldía…</option>
+                    {["Álvaro Obregón","Azcapotzalco","Benito Juárez","Coyoacán","Cuajimalpa de Morelos","Cuauhtémoc","Gustavo A. Madero","Iztacalco","Iztapalapa","La Magdalena Contreras","Miguel Hidalgo","Milpa Alta","Tláhuac","Tlalpan","Venustiano Carranza","Xochimilco"].map(a=><option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div><label className="lbl">Código postal</label><input className="inp" placeholder="Ej. 03100" maxLength={5} value={form.cp} onChange={e=>setForm(f=>({...f,cp:e.target.value.replace(/\D/g,"")}))} inputMode="numeric"/></div>
               </>)}
               {form.entrega==="foraneo"&&(<>
                 <div><label className="lbl">Estado de destino *</label>
@@ -1400,7 +1430,7 @@ export default function App() {
           <div className="pb">
             <PantallaPago
               pedido={pedidoCreado}
-              onNuevoPedido={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);setForm({nombre:"",telefono:"",entrega:"tienda",colonia:"",direccion:"",estado:"",ciudad:"",metodo_pago:"spei"});}}
+              onNuevoPedido={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);setForm({nombre:"",telefono:"",entrega:"tienda",calle:"",colonia:"",alcaldia:"",cp:"",estado:"",ciudad:"",metodo_pago:"spei"});}}
             />
           </div>
         </aside>
