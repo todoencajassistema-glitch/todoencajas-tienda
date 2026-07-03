@@ -1010,6 +1010,90 @@ function TarjetaProducto({ prod, agregar, added, setAdded, setPanel, setDetalle 
 }
 
 /* ─── Buscador de pedido flotante ──────────────────────────────────────── */
+/* ─── Buscador de CP con autocompletado de colonias ────────────────────── */
+function BuscadorCP({ form, setForm }) {
+  const [colonias, setColonias] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [cpError, setCpError]   = useState("");
+
+  const buscarCP = async (cp) => {
+    setForm(f => ({ ...f, cp, colonia: "", alcaldia: "" }));
+    setColonias([]);
+    setCpError("");
+    if (cp.length < 5) return;
+    setBuscando(true);
+    try {
+      const r = await fetch(`https://api.zippopotam.us/mx/${cp}`);
+      if (!r.ok) throw new Error("not found");
+      const data = await r.json();
+      const places = data.places || [];
+      if (places.length === 0) throw new Error("empty");
+      const cols = places.map(p => p["place name"]);
+      const alcaldia = places[0]["state abbreviation"] ? places[0]["state"] : "";
+      setColonias(cols);
+      setForm(f => ({
+        ...f,
+        colonia: cols.length === 1 ? cols[0] : "",
+        alcaldia: alcaldia || "",
+      }));
+    } catch {
+      setCpError("CP no encontrado. Escribe tu colonia y alcaldía manualmente.");
+    }
+    setBuscando(false);
+  };
+
+  return (
+    <>
+      <div style={{position:"relative"}}>
+        <label className="lbl">Código postal *</label>
+        <input
+          className="inp"
+          placeholder="Ej. 09830"
+          maxLength={5}
+          value={form.cp}
+          onChange={e => buscarCP(e.target.value.replace(/\D/g,""))}
+          inputMode="numeric"
+        />
+        {buscando && (
+          <div style={{position:"absolute",right:12,top:"60%",transform:"translateY(-50%)"}}>
+            <div style={{width:16,height:16,border:"2px solid #f0ede8",borderTopColor:ORANGE,borderRadius:"50%",animation:"sp .7s linear infinite"}}/>
+          </div>
+        )}
+        {cpError && <div style={{fontSize:11,color:"#e53935",marginTop:3,fontWeight:600}}>⚠ {cpError}</div>}
+      </div>
+
+      {/* Colonia — selector si hay datos, texto libre si no */}
+      <div>
+        <label className="lbl">Colonia</label>
+        {colonias.length > 1 ? (
+          <select className="inp" value={form.colonia} onChange={e=>setForm(f=>({...f,colonia:e.target.value}))}>
+            <option value="">Selecciona tu colonia…</option>
+            {colonias.map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
+        ) : (
+          <input className="inp" placeholder="Ej. Del Valle" value={form.colonia} onChange={e=>setForm(f=>({...f,colonia:e.target.value}))}/>
+        )}
+      </div>
+
+      {/* Alcaldía — auto si hay datos, manual si no */}
+      <div>
+        <label className="lbl">Alcaldía</label>
+        <input
+          className="inp"
+          placeholder="Ej. Iztapalapa"
+          value={form.alcaldia}
+          onChange={e=>setForm(f=>({...f,alcaldia:e.target.value}))}
+          readOnly={!!form.alcaldia && colonias.length > 0}
+          style={{background: form.alcaldia && colonias.length > 0 ? "#f5f5f5" : "#fff"}}
+        />
+        {form.alcaldia && colonias.length > 0 && (
+          <div style={{fontSize:11,color:"#22c55e",marginTop:3,fontWeight:600}}>✓ Detectada automáticamente</div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function BuscadorPedido({ onIr }) {
   const [abierto, setAbierto] = useState(false);
   const [ref, setRef]         = useState("");
@@ -1378,14 +1462,7 @@ export default function App() {
               <EnvioInfo entrega={form.entrega} total={total}/>
               {form.entrega==="cdmx"&&(<>
                 <div><label className="lbl">Calle y número *</label><input className="inp" placeholder="Ej. Av. Insurgentes Sur 1234" value={form.calle} onChange={setF("calle")}/></div>
-                <div><label className="lbl">Colonia</label><input className="inp" placeholder="Ej. Del Valle" value={form.colonia} onChange={setF("colonia")}/></div>
-                <div><label className="lbl">Alcaldía</label>
-                  <select className="inp" value={form.alcaldia} onChange={setF("alcaldia")}>
-                    <option value="">Selecciona alcaldía…</option>
-                    {["Álvaro Obregón","Azcapotzalco","Benito Juárez","Coyoacán","Cuajimalpa de Morelos","Cuauhtémoc","Gustavo A. Madero","Iztacalco","Iztapalapa","La Magdalena Contreras","Miguel Hidalgo","Milpa Alta","Tláhuac","Tlalpan","Venustiano Carranza","Xochimilco"].map(a=><option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <div><label className="lbl">Código postal</label><input className="inp" placeholder="Ej. 03100" maxLength={5} value={form.cp} onChange={e=>setForm(f=>({...f,cp:e.target.value.replace(/\D/g,"")}))} inputMode="numeric"/></div>
+                <BuscadorCP form={form} setForm={setForm} />
               </>)}
               {form.entrega==="foraneo"&&(<>
                 <div><label className="lbl">Estado de destino *</label>
