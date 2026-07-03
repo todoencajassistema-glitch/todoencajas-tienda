@@ -708,7 +708,7 @@ function PaginaPedido({ referencia, onVolver }) {
       )}
       {pedido.estatus==="en_camino" && pedido.entrega==="cdmx" && (
         <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"14px 16px",fontSize:13,color:"#1e40af",fontWeight:600}}>
-          🚚 Nuestro equipo está llevando tu pedido. En breve llegará a tu domicilio.
+          🚚 Tu pedido va en camino, llegará a tu domicilio en el transcurso del día. Si tienes alguna duda, contáctanos por WhatsApp.
         </div>
       )}
 
