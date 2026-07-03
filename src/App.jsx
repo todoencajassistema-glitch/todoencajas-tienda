@@ -805,6 +805,9 @@ function PantallaPagoComprobante({ pedido, onSubido }) {
 function PantallaPago({ pedido, onNuevoPedido }) {
   const [subido, setSubido] = useState(false);
   const fileRef = useRef();
+  const banco = pedido.banco_elegido || "banorte";
+  const clabeElegida = banco === "scotiabank" ? CLABE2 : CLABE;
+  const bancoElegido = banco === "scotiabank" ? BANCO2 : BANCO;
 
   const esEfectivo = pedido.metodo_pago === "efectivo";
   const expira = new Date(pedido.expira_en);
@@ -888,18 +891,10 @@ function PantallaPago({ pedido, onNuevoPedido }) {
       {!esEfectivo ? (
         <div style={{background:"#eff6ff",border:"1.5px solid #bfdbfe",borderRadius:12,padding:"16px"}}>
           <div style={{fontSize:12,fontWeight:700,color:"#1e40af",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>💳 Datos para SPEI / Transferencia</div>
-          {/* Selector de banco */}
-          <div style={{display:"flex",gap:8,marginBottom:12}}>
-            {[{id:"banorte",label:"🏦 Banorte"},{id:"scotiabank",label:"🏦 Scotiabank"}].map(b=>(
-              <button key={b.id} onClick={()=>setBanco(b.id)} style={{flex:1,padding:"8px",borderRadius:8,border:`1.5px solid ${banco===b.id?"#3b82f6":"#dbeafe"}`,background:banco===b.id?"#1e40af":"#fff",color:banco===b.id?"#fff":"#3b82f6",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer"}}>
-                {b.label}
-              </button>
-            ))}
-          </div>
           {[
-            ["Banco", banco==="banorte" ? BANCO : BANCO2],
+            ["Banco", bancoElegido],
             ["Beneficiario", BENEFICIARIO],
-            ["CLABE", banco==="banorte" ? CLABE : CLABE2],
+            ["CLABE", clabeElegida],
             ["Monto exacto", fmt(pedido.subtotal)],
             ["Referencia", pedido.referencia],
           ].map(([k,v]) => (
@@ -1023,18 +1018,18 @@ function BuscadorCP({ form, setForm }) {
     if (cp.length < 5) return;
     setBuscando(true);
     try {
-      const r = await fetch(`https://api.zippopotam.us/mx/${cp}`);
+      const r = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${cp}`);
       if (!r.ok) throw new Error("not found");
       const data = await r.json();
-      const places = data.places || [];
-      if (places.length === 0) throw new Error("empty");
-      const cols = places.map(p => p["place name"]);
-      const alcaldia = places[0]["state abbreviation"] ? places[0]["state"] : "";
+      const zips = data.zip_codes || [];
+      if (zips.length === 0) throw new Error("empty");
+      const cols = [...new Set(zips.map(z => z.d_asenta).filter(Boolean))];
+      const alcaldia = zips[0].d_mnpio || "";
       setColonias(cols);
       setForm(f => ({
         ...f,
         colonia: cols.length === 1 ? cols[0] : "",
-        alcaldia: alcaldia || "",
+        alcaldia,
       }));
     } catch {
       setCpError("CP no encontrado. Escribe tu colonia y alcaldía manualmente.");
@@ -1062,7 +1057,7 @@ function BuscadorCP({ form, setForm }) {
         {cpError && <div style={{fontSize:11,color:"#e53935",marginTop:3,fontWeight:600}}>⚠ {cpError}</div>}
       </div>
 
-      {/* Colonia — selector si hay datos, texto libre si no */}
+      {/* Colonia */}
       <div>
         <label className="lbl">Colonia</label>
         {colonias.length > 1 ? (
@@ -1071,11 +1066,11 @@ function BuscadorCP({ form, setForm }) {
             {colonias.map(c=><option key={c} value={c}>{c}</option>)}
           </select>
         ) : (
-          <input className="inp" placeholder="Ej. Del Valle" value={form.colonia} onChange={e=>setForm(f=>({...f,colonia:e.target.value}))}/>
+          <input className="inp" placeholder="Ej. El Manto" value={form.colonia} onChange={e=>setForm(f=>({...f,colonia:e.target.value}))}/>
         )}
       </div>
 
-      {/* Alcaldía — auto si hay datos, manual si no */}
+      {/* Alcaldía */}
       <div>
         <label className="lbl">Alcaldía</label>
         <input
@@ -1083,7 +1078,6 @@ function BuscadorCP({ form, setForm }) {
           placeholder="Ej. Iztapalapa"
           value={form.alcaldia}
           onChange={e=>setForm(f=>({...f,alcaldia:e.target.value}))}
-          readOnly={!!form.alcaldia && colonias.length > 0}
           style={{background: form.alcaldia && colonias.length > 0 ? "#f5f5f5" : "#fff"}}
         />
         {form.alcaldia && colonias.length > 0 && (
@@ -1173,7 +1167,7 @@ export default function App() {
   const [added, setAdded]         = useState(null);
   const [busqueda, setBusqueda]   = useState("");
   const [detalle, setDetalle]     = useState(null);
-  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", calle:"", colonia:"", alcaldia:"", cp:"", estado:"", ciudad:"", metodo_pago:"spei" });
+  const [form, setForm]           = useState({ nombre:"", telefono:"", entrega:"tienda", calle:"", colonia:"", alcaldia:"", cp:"", estado:"", ciudad:"", metodo_pago:"spei", banco:"banorte" });
   const [ferr, setFerr]           = useState("");
   const [pedidoCreado, setPedidoCreado] = useState(null);
 
@@ -1292,7 +1286,7 @@ export default function App() {
       // Abrir WhatsApp con el resumen
       window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total,referencia)}`, "_blank");
       // Mostrar pantalla de pago
-      setPedidoCreado({ ...pedido, referencia, metodo_pago: metodoPago, expira_en: expira });
+      setPedidoCreado({ ...pedido, referencia, metodo_pago: metodoPago, expira_en: expira, banco_elegido: form.banco });
     } catch(e) {
       console.error("Error guardando pedido:", e);
       // Si falla Supabase, igual abrir WhatsApp
@@ -1483,8 +1477,28 @@ export default function App() {
                   </div>
                 </div>
                 {form.metodo_pago==="spei" && (
-                  <div style={{fontSize:11,color:"#aaa",marginTop:5,fontWeight:600}}>
-                    ⏰ Tendrás 24 horas para subir tu comprobante de pago
+                  <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:".6px"}}>Elige el banco al que transferirás:</div>
+                    <div style={{display:"flex",gap:8}}>
+                      {[{id:"banorte",label:"🏦 Banorte"},{id:"scotiabank",label:"🏦 Scotiabank"}].map(b=>(
+                        <button key={b.id} onClick={()=>setForm(f=>({...f,banco:b.id}))}
+                          style={{flex:1,padding:"9px 8px",borderRadius:10,border:`1.5px solid ${form.banco===b.id?"#E8681A":"#e5e1db"}`,background:form.banco===b.id?"#fff7f2":"#fff",color:form.banco===b.id?ORANGE:"#555",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all .15s"}}>
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{background:"#fafaf8",border:"1.5px solid #f0ede8",borderRadius:10,padding:"10px 12px",fontSize:12}}>
+                      {form.banco==="banorte" ? (
+                        <><div style={{color:"#aaa",marginBottom:2}}>CLABE: <strong style={{color:"#1a1a1a"}}>{CLABE}</strong></div>
+                        <div style={{color:"#aaa"}}>Beneficiario: <strong style={{color:"#1a1a1a"}}>{BENEFICIARIO}</strong></div></>
+                      ) : (
+                        <><div style={{color:"#aaa",marginBottom:2}}>CLABE: <strong style={{color:"#1a1a1a"}}>{CLABE2}</strong></div>
+                        <div style={{color:"#aaa"}}>Beneficiario: <strong style={{color:"#1a1a1a"}}>{BENEFICIARIO}</strong></div></>
+                      )}
+                    </div>
+                    <div style={{fontSize:11,color:"#aaa",fontWeight:600}}>
+                      ⏰ Tendrás 24 horas para subir tu comprobante de pago
+                    </div>
                   </div>
                 )}
               </div>
@@ -1531,7 +1545,7 @@ export default function App() {
           <div className="pb">
             <PantallaPago
               pedido={pedidoCreado}
-              onNuevoPedido={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);setForm({nombre:"",telefono:"",entrega:"tienda",calle:"",colonia:"",alcaldia:"",cp:"",estado:"",ciudad:"",metodo_pago:"spei"});}}
+              onNuevoPedido={()=>{setPedidoCreado(null);setCarrito([]);setPanel(false);setForm({nombre:"",telefono:"",entrega:"tienda",calle:"",colonia:"",alcaldia:"",cp:"",estado:"",ciudad:"",metodo_pago:"spei",banco:"banorte"});}}
             />
           </div>
         </aside>
