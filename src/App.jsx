@@ -1116,27 +1116,29 @@ function BuscadorPedido({ onIr }) {
         </div>
       )}
 
-      {/* Botón MI PEDIDO - negro con borde naranja */}
+      {/* Botón MI PEDIDO glassmorphism oscuro */}
       <button
         onClick={()=>setAbierto(a=>!a)}
         style={{
           position:"fixed", bottom:92, right:24, zIndex:150,
-          background:"#1a1a1a", color:"#fff",
-          borderRadius:50, border:`1.5px solid ${ORANGE}`,
-          padding:"11px 20px 11px 14px", cursor:"pointer",
+          background:"rgba(20,20,20,0.5)",
+          backdropFilter:"blur(12px)",
+          WebkitBackdropFilter:"blur(12px)",
+          border:"1px solid rgba(232,104,26,0.4)",
+          borderRadius:50,
+          padding:"9px 18px 9px 12px",
+          cursor:"pointer",
           display:"flex", alignItems:"center", gap:10,
-          fontFamily:"Inter,sans-serif", fontWeight:800, fontSize:13,
-          boxShadow:"0 4px 16px rgba(0,0,0,.3)",
-          letterSpacing:".5px",
-          transition:"transform .15s, box-shadow .15s",
+          boxShadow:"0 0 16px rgba(232,104,26,0.2), 0 4px 20px rgba(0,0,0,0.3)",
+          transition:"transform .2s, box-shadow .2s",
         }}
-        onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";}}
-        onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";}}
+        onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow="0 0 24px rgba(232,104,26,0.35), 0 4px 24px rgba(0,0,0,0.35)";}}
+        onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 0 16px rgba(232,104,26,0.2), 0 4px 20px rgba(0,0,0,0.3)";}}
       >
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        MI PEDIDO
+        <span style={{color:"#fff",fontFamily:"Inter,sans-serif",fontWeight:500,fontSize:13,letterSpacing:".2px",textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>Mi pedido</span>
       </button>
     </>
   );
@@ -1470,8 +1472,11 @@ export default function App() {
         color:"#fff", fontFamily:"Inter,sans-serif",
         fontWeight:500, fontSize:13, letterSpacing:".2px",
         textShadow:"0 1px 4px rgba(0,0,0,0.4)",
-        whiteSpace:"nowrap",
-      }}>¿Necesitas ayuda?</span>
+        lineHeight:1.3,
+      }}>
+        <div>¿Necesitas</div>
+        <div>ayuda?</div>
+      </span>
     </a>
 
     {detalle&&<ModalDetalles
