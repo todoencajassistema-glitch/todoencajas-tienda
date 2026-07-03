@@ -1299,7 +1299,7 @@ export default function App() {
     <div style={{minHeight:"100vh",background:"#f5f5f0",fontFamily:"Inter,sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'); @keyframes sp{to{transform:rotate(360deg)}}`}</style>
       <div style={{background:"#fff",borderBottom:"1px solid #f0ede8",padding:"14px 20px",display:"flex",alignItems:"center",gap:10}}>
-  <img src="/logo-header.jpg" alt="Todo en Cajas" style={{height: 32, width: "auto", objectFit: "contain"}} />
+  <img src="/logo-header.jpg" alt="Todo en Cajas" style={{height: 60, width: "auto", objectFit: "contain"}} />
 </div>
       <PaginaPedido referencia={paginaPedido} onVolver={()=>{setPaginaPedido(null);window.history.pushState({},"","/");}} />
     </div>
