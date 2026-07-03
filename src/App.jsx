@@ -1311,7 +1311,7 @@ export default function App() {
 
     <header className="hdr"><div className="hdr-in">
       <div className="logo">
-  <img src="/logo-header-transparent.png" alt="Todo en Cajas" style={{height: "clamp(50px, 9vw, 100px)", width: "auto", objectFit: "contain"}}
+  <img src="/logo-header-transparent.png" alt="Todo en Cajas" style={{height: "clamp(60px, 9vw, 100px)", width: "auto", objectFit: "contain"}}
 </div>
       <button className="cart-btn" onClick={()=>setPanel(true)}><CartIco/> Carrito {totalItems>0&&<span className="badge">{totalItems}</span>}</button>
     </div></header>
