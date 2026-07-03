@@ -1018,13 +1018,15 @@ function BuscadorCP({ form, setForm }) {
     if (cp.length < 5) return;
     setBuscando(true);
     try {
-      const r = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${cp}`);
+      const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?token=pruebas`);
       if (!r.ok) throw new Error("not found");
       const data = await r.json();
-      const zips = data.zip_codes || [];
-      if (zips.length === 0) throw new Error("empty");
-      const cols = [...new Set(zips.map(z => z.d_asenta).filter(Boolean))];
-      const alcaldia = zips[0].d_mnpio || "";
+      // copomex devuelve array de objetos con response
+      const items = Array.isArray(data) ? data : [data];
+      const validos = items.filter(i => i.response && !i.error);
+      if (validos.length === 0) throw new Error("empty");
+      const cols = [...new Set(validos.map(i => i.response.asentamiento).filter(Boolean))];
+      const alcaldia = validos[0].response.municipio || "";
       setColonias(cols);
       setForm(f => ({
         ...f,
@@ -1299,8 +1301,9 @@ export default function App() {
     <div style={{minHeight:"100vh",background:"#f5f5f0",fontFamily:"Inter,sans-serif"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap'); @keyframes sp{to{transform:rotate(360deg)}}`}</style>
       <div style={{background:"#fff",borderBottom:"1px solid #f0ede8",padding:"14px 20px",display:"flex",alignItems:"center",gap:10}}>
-  <img src="/logo-header.jpg" alt="Todo en Cajas" style={{height: 60, width: "auto", objectFit: "contain"}} />
-</div>
+        <BoxSVG size={28} color={ORANGE}/>
+        <span style={{fontSize:16,fontWeight:900,textTransform:"uppercase",letterSpacing:"-.3px"}}>TODO EN <span style={{color:ORANGE}}>CAJAS</span>.COM</span>
+      </div>
       <PaginaPedido referencia={paginaPedido} onVolver={()=>{setPaginaPedido(null);window.history.pushState({},"","/");}} />
     </div>
   );
@@ -1311,8 +1314,9 @@ export default function App() {
 
     <header className="hdr"><div className="hdr-in">
       <div className="logo">
-  <img src="/logo-header-transparent.png" alt="Todo en Cajas" style={{height: "clamp(50px, 9vw, 100px)", width: "auto", objectFit: "contain"}} />
-</div>
+        <svg viewBox="0 0 44 44" fill="none"><path d="M22 6L38 14V30L22 38L6 30V14L22 6Z" stroke="#1a1a1a" strokeWidth="2.2" fill="none"/><path d="M22 6V38M6 14L22 22L38 14" stroke="#1a1a1a" strokeWidth="2.2"/><path d="M14 9.5L30 17.5" stroke="#E8681A" strokeWidth="1.8" strokeDasharray="2.5 2.5"/></svg>
+        <span className="logo-txt"><span className="l1">TODO EN</span><span className="l2"><span className="lc">CAJAS</span><span className="lo">.COM</span></span></span>
+      </div>
       <button className="cart-btn" onClick={()=>setPanel(true)}><CartIco/> Carrito {totalItems>0&&<span className="badge">{totalItems}</span>}</button>
     </div></header>
 
