@@ -1018,15 +1018,13 @@ function BuscadorCP({ form, setForm }) {
     if (cp.length < 5) return;
     setBuscando(true);
     try {
-      const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?token=pruebas`);
+      const r = await fetch(`https://datos.gob.mx/busca/api/3/action/datastore_search?resource_id=4a627df2-b938-4fb0-848d-91e6f9f42735&filters={"d_codigo":"${cp}"}&limit=100`);
       if (!r.ok) throw new Error("not found");
       const data = await r.json();
-      // copomex devuelve array de objetos con response
-      const items = Array.isArray(data) ? data : [data];
-      const validos = items.filter(i => i.response && !i.error);
-      if (validos.length === 0) throw new Error("empty");
-      const cols = [...new Set(validos.map(i => i.response.asentamiento).filter(Boolean))];
-      const alcaldia = validos[0].response.municipio || "";
+      const records = data?.result?.records || [];
+      if (records.length === 0) throw new Error("empty");
+      const cols = [...new Set(records.map(r => r.d_asenta).filter(Boolean))].sort();
+      const alcaldia = records[0].D_mnpio || records[0].d_ciudad || "";
       setColonias(cols);
       setForm(f => ({
         ...f,
