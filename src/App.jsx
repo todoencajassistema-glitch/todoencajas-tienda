@@ -1116,29 +1116,27 @@ function BuscadorPedido({ onIr }) {
         </div>
       )}
 
-      {/* Botón MI PEDIDO glassmorphism oscuro */}
+      {/* Botón MI PEDIDO negro sólido con borde naranja */}
       <button
         onClick={()=>setAbierto(a=>!a)}
         style={{
           position:"fixed", bottom:92, right:24, zIndex:150,
-          background:"rgba(20,20,20,0.5)",
-          backdropFilter:"blur(12px)",
-          WebkitBackdropFilter:"blur(12px)",
-          border:"1px solid rgba(232,104,26,0.4)",
+          background:"#1a1a1a",
+          border:"1.5px solid #E8681A",
           borderRadius:50,
-          padding:"9px 18px 9px 12px",
+          padding:"10px 18px 10px 12px",
           cursor:"pointer",
-          display:"flex", alignItems:"center", gap:10,
-          boxShadow:"0 0 16px rgba(232,104,26,0.2), 0 4px 20px rgba(0,0,0,0.3)",
+          display:"flex", alignItems:"center", gap:8,
+          boxShadow:"0 0 14px rgba(232,104,26,0.5), 0 4px 16px rgba(0,0,0,0.5)",
           transition:"transform .2s, box-shadow .2s",
         }}
-        onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow="0 0 24px rgba(232,104,26,0.35), 0 4px 24px rgba(0,0,0,0.35)";}}
-        onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 0 16px rgba(232,104,26,0.2), 0 4px 20px rgba(0,0,0,0.3)";}}
+        onMouseOver={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow="0 0 24px rgba(232,104,26,0.7), 0 4px 20px rgba(0,0,0,0.5)";}}
+        onMouseOut={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 0 14px rgba(232,104,26,0.5), 0 4px 16px rgba(0,0,0,0.5)";}}
       >
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#E8681A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <span style={{color:"#fff",fontFamily:"Inter,sans-serif",fontWeight:500,fontSize:13,letterSpacing:".2px",textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>Mi pedido</span>
+        <span style={{color:"#fff",fontFamily:"Inter,sans-serif",fontWeight:500,fontSize:13}}>Mi pedido</span>
       </button>
     </>
   );
@@ -1434,7 +1432,7 @@ export default function App() {
           <p style={{margin:0,color:"#888",fontSize:12,lineHeight:1.6}}>🕘 Lun – Vie: 9:00 am – 6:00 pm<br/>🕘 Sábado: 9:00 am – 2:00 pm<br/>Domingo: Cerrado</p>
         </div>
       </div>
-      <p style={{marginTop:24,fontSize:11,color:"#555"}}>© {new Date().getFullYear()} Todo en Cajas · CDMX · Todos los derechos reservados</p>
+      <p style={{marginTop:24,fontSize:11,color:"#555"}}>© {new Date().getFullYear()} Todo en Cajas · CDMX · Todos los derechos reservados<br/><a href="/privacidad.html" style={{color:"#aaa",textDecoration:"none"}} target="_blank">Aviso de Privacidad</a></p>
     </footer>
 
     {/* Botón flotante consulta tu pedido */}
@@ -1445,10 +1443,7 @@ export default function App() {
       style={{
         position:"fixed", bottom:24, right:24, zIndex:150,
         display:"flex", alignItems:"center", gap:10,
-        background:"rgba(30,30,30,0.45)",
-        backdropFilter:"blur(12px)",
-        WebkitBackdropFilter:"blur(12px)",
-        border:"1px solid rgba(37,211,102,0.35)",
+        background:"#128C7E",
         borderRadius:50,
         padding:"9px 18px 9px 9px",
         boxShadow:"0 0 18px rgba(37,211,102,0.3), 0 4px 20px rgba(0,0,0,0.3)",
