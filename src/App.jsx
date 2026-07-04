@@ -1149,13 +1149,15 @@ export default function App() {
   const [cat, setCat]             = useState("Todos");
   const [carrito, setCarrito]     = useState([]);
   const [panel, setPanel]         = useState(false);
-  const [paginaPedido, setPaginaPedido] = useState(null); // referencia del pedido a ver
+  const [paginaPedido, setPaginaPedido] = useState(null);
+  const [paginaPrivacidad, setPaginaPrivacidad] = useState(false);
 
-  // Detectar URL /pedido/TEC-2026-XXXXX
+  // Detectar URL /pedido/TEC-2026-XXXXX y /privacidad
   useEffect(() => {
     const path = window.location.pathname;
     const m = path.match(/^\/pedido\/([A-Z0-9-]+)$/i);
     if (m) setPaginaPedido(m[1]);
+    if (path === "/privacidad") setPaginaPrivacidad(true);
   }, []);
   const [added, setAdded]         = useState(null);
   const [busqueda, setBusqueda]   = useState("");
@@ -1286,6 +1288,37 @@ export default function App() {
       window.open(`https://wa.me/${WA_NUMBER}?text=${buildMsg(carrito,form,total,"")}`, "_blank");
     }
   };
+
+  // Página de privacidad
+  if (paginaPrivacidad) return (
+    <div style={{minHeight:"100vh",background:"#f5f5f0",fontFamily:"Inter,sans-serif"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');`}</style>
+      <div style={{background:"#fff",borderBottom:"1px solid #f0ede8",padding:"14px 20px",display:"flex",alignItems:"center",gap:10}}>
+        <img src="/logo-header-transparent.png" alt="Todo en Cajas" style={{height:60,width:"auto",objectFit:"contain"}}/>
+      </div>
+      <div style={{maxWidth:800,margin:"40px auto",background:"#fff",borderRadius:16,padding:"40px",boxShadow:"0 4px 24px rgba(0,0,0,.08)"}}>
+        <h1 style={{fontSize:24,fontWeight:900,color:"#1a1a1a",marginBottom:8}}>Aviso de Privacidad</h1>
+        <p style={{fontSize:13,color:"#aaa",marginBottom:32}}>Última actualización: julio 2026</p>
+        {[
+          ["I. Identidad y domicilio del Responsable", `En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), se pone a su disposición el presente Aviso de Privacidad.\n\nResponsable: Edgar Celaya Arellano\nRFC: CEAE840505MD5\nDomicilio: Cucurpe 44, Colonia Álvaro Obregón, Venustiano Carranza, C.P. 15990, Ciudad de México, CDMX.\nCorreo electrónico: buzon@todoencajas.com`],
+          ["II. Datos personales que se recaban", `Para llevar a cabo las finalidades descritas en el presente aviso, recabamos los siguientes datos personales:\n\n• Nombre completo\n• Número de teléfono\n• Dirección de entrega (calle, número, colonia, alcaldía, código postal)\n• Comprobante de pago (imagen o PDF)\n\nNo recabamos datos personales sensibles.`],
+          ["III. Finalidades del tratamiento", `Los datos personales que recabamos son utilizados para las siguientes finalidades primarias:\n\n• Procesar y gestionar su pedido de cajas y material de empaque\n• Coordinar la entrega o recolección del pedido\n• Confirmar y verificar el pago realizado\n• Contactarle por WhatsApp para informarle sobre el estatus de su pedido\n• Atender dudas, aclaraciones o reclamaciones relacionadas con su pedido`],
+          ["IV. Transferencia de datos", `Sus datos personales no serán transferidos a terceros sin su consentimiento, salvo en los casos previstos en el artículo 37 de la LFPDPPP, o cuando sea requerido por autoridad competente.`],
+          ["V. Derechos ARCO", `Usted tiene derecho a Acceder, Rectificar, Cancelar u Oponerse al tratamiento de sus datos personales (Derechos ARCO).\n\nPara ejercer sus derechos ARCO, envíe su solicitud al correo buzon@todoencajas.com indicando:\n\n• Nombre completo y datos de contacto\n• Descripción clara del derecho que desea ejercer\n• Copia de identificación oficial\n\nDaremos respuesta a su solicitud en un plazo máximo de 20 días hábiles.`],
+          ["VI. Modificaciones al Aviso de Privacidad", `Nos reservamos el derecho de modificar el presente Aviso de Privacidad en cualquier momento. Cualquier cambio será notificado a través de nuestro sitio web todoencajas.com.`],
+          ["VII. Autoridad competente", `Si considera que su derecho a la protección de datos personales ha sido vulnerado, puede acudir al Instituto Nacional de Transparencia, Acceso a la Información y Protección de Datos Personales (INAI) en www.inai.org.mx.`],
+        ].map(([titulo, texto]) => (
+          <div key={titulo} style={{marginBottom:24}}>
+            <div style={{fontSize:13,fontWeight:700,color:ORANGE,textTransform:"uppercase",letterSpacing:".8px",marginBottom:8}}>{titulo}</div>
+            <p style={{fontSize:14,color:"#555",lineHeight:1.8,whiteSpace:"pre-line"}}>{texto}</p>
+          </div>
+        ))}
+        <button onClick={()=>{setPaginaPrivacidad(false);window.history.pushState({},"","/");}} style={{background:ORANGE,color:"#fff",border:"none",borderRadius:12,padding:"11px 24px",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:16}}>
+          ← Volver a la tienda
+        </button>
+      </div>
+    </div>
+  );
 
   // Si estamos en /pedido/:ref mostrar página de seguimiento
   if (paginaPedido) return (
@@ -1432,7 +1465,7 @@ export default function App() {
           <p style={{margin:0,color:"#888",fontSize:12,lineHeight:1.6}}>🕘 Lun – Vie: 9:00 am – 6:00 pm<br/>🕘 Sábado: 9:00 am – 2:00 pm<br/>Domingo: Cerrado</p>
         </div>
       </div>
-      <p style={{marginTop:24,fontSize:11,color:"#555"}}>© {new Date().getFullYear()} Todo en Cajas · CDMX · Todos los derechos reservados<br/><a href="/privacidad.html" style={{color:"#aaa",textDecoration:"none"}} target="_blank">Aviso de Privacidad</a></p>
+      <p style={{marginTop:24,fontSize:11,color:"#555"}}>© {new Date().getFullYear()} Todo en Cajas · CDMX · Todos los derechos reservados<br/><span onClick={()=>{setPaginaPrivacidad(true);window.history.pushState({},"","/privacidad");}} style={{color:"#aaa",cursor:"pointer",textDecoration:"underline"}}>Aviso de Privacidad</span></p>
     </footer>
 
     {/* Botón flotante consulta tu pedido */}
