@@ -1174,9 +1174,24 @@ export default function App() {
       .catch(()=>{setProductos(DEMO);setUsandoDemo(true);setLoading(false);});
   },[]);
 
-  const CATS_ORDEN = ["Todos","Saldos","Alimentos y Bebidas","Material de Embalaje","Cajas Armables","Cajas para Envío","Cajas Especiales","Contenedores"];
-  const catsDB = Array.from(new Set(productos.map(p=>p.categoria).filter(Boolean)));
-  const cats = ["Todos", ...CATS_ORDEN.slice(1).filter(c => catsDB.includes(c)), ...catsDB.filter(c => !CATS_ORDEN.includes(c))];
+  const [cats, setCats] = useState(["Todos"]);
+
+  useEffect(() => {
+    fetch(`${SUPABASE_URL}/rest/v1/categorias?activa=eq.true&order=orden,nombre&select=nombre`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    }).then(r=>r.json()).then(data=>{
+      if (data && data.length > 0) {
+        setCats(["Todos", ...data.map(c=>c.nombre)]);
+      } else {
+        // Fallback si no hay categorías en Supabase
+        const catsDB = Array.from(new Set(productos.map(p=>p.categoria).filter(Boolean)));
+        setCats(["Todos", ...catsDB]);
+      }
+    }).catch(()=>{
+      const catsDB = Array.from(new Set(productos.map(p=>p.categoria).filter(Boolean)));
+      setCats(["Todos", ...catsDB]);
+    });
+  }, [productos]);
   // Detectar si la búsqueda es una medida tipo "20x30x15" o "20 x 30 x 15"
   const parseMedida = (q) => {
     const m = q.replace(/\s/g,"").match(/^(\d+(?:\.\d+)?)[x×](\d+(?:\.\d+)?)[x×](\d+(?:\.\d+)?)$/i);
